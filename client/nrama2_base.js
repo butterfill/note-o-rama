@@ -1,9 +1,14 @@
 /**
- * This global variable holds everything 
+ * note-o-rama, second attempt
+ *
+ * I haven't decided what license to use yet, it will depend on what
+ * I end up linking to.  For now if you want to use any of this, please
+ * just email me (stephen.butterfill@gmail.com)
  */
+
 nrama = {};
 //nrama.$j = jQuery.noConflict();
-nrama.$j = $
+nrama.$j = $; //TODO revise
 
 nrama.options = {
     user_id : uuid(),
