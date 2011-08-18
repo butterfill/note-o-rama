@@ -35,18 +35,22 @@ nrama.options = {
         "padding-bottom":"0px",
         "border":"none",
         "line-height":"1.1",
-        "z-index":"9999" 
+        "z-index":"9999",
+        'background-color' : 'inherit'
     }
 };
 nrama.options.note_style["width"] = nrama.options.note_width+"px";
-nrama.options.note_style["height"] = nrama.options.note_height+"px";
+//nrama.options.note_style["height"] = nrama.options.note_height+"px";
 nrama.options.note_editor_style['width'] = nrama.options.note_width+"px";
-nrama.options.note_editor_style['height'] = nrama.options.note_height+"px";
-nrama.options.note_editor_style['background-color'] = nrama.options.note_style['background-color'];
+//nrama.options.note_editor_style['height'] = nrama.options.note_height+"px";
 
 if( nrama.options.debug ) {
     //object contains stuff for debugging
     d = {};
+}
+
+nrama._internal = {
+    zindex_counter : 10000  //used for bringing notes to the front
 }
 
 nrama.persist = {
@@ -146,6 +150,17 @@ nrama.quotes = {
     },
     
     /**
+     * request quote delete from server and remove from page if successful
+     */
+    remove : function remove(quote) {
+        $('.'+quote.uuid).css('background-color','orange');
+        nrama.persist.delete_quote(quote.uuid, function(){
+            $.log("nrama deleted quote "+quote.uuid);
+            nrama.unhighlight(quote);
+        });
+    },
+    
+    /**
      * recovers the range for the specified quote (if possible --- this may fail,
      * in which case null is returned).
      * NB: depending on serialize method used, this may fail if quote has been
@@ -217,12 +232,14 @@ nrama.notes = {
         var pos_attrs = {"position":"absolute", "left":hpos+"px", "top":vpos+"px"};
         var textarea = $('<textarea></textarea>').
                             val(nrama.options.note_default_text).
-                            css(nrama.options.note_editor_style);
+                            css(nrama.options.note_editor_style).
+                            autogrow();
         var inner_div = $('<div></div>').css(nrama.options.note_inner_style).
                             append(textarea);
         var edit_note = $('<div></div').attr('id',note_uuid).
                             addClass('_nrama-note').
                             css(pos_attrs).css(nrama.options.note_style).
+                            css('z-index',nrama._internal.zindex_counter++).
                             data('nrama_quote',quote).
                             data('nrama_content',nrama.options.note_default_text).
                             append(inner_div).
@@ -238,6 +255,10 @@ nrama.notes = {
      * create a new note
      */
     create : function create(edit_note_node) {
+        //adjust height of note
+        edit_note_node.css('height','auto');
+        //$('textarea', edit_note_node).css('height','auto');
+        //check whether anything has changed
         var old_content = edit_note_node.data('nrama_content');
         var $textarea = $('textarea', edit_note_node);
         var new_content = $textarea.val();
@@ -245,9 +266,14 @@ nrama.notes = {
             $.log("nrama.notes.create -- note unchanged");
             return null;
         }
+        var old_uuid = edit_note_node.attr('id');
+        if( new_content == '' ) {
+            $.log("nrama.notes.create -- deleting note "+old_uuid);
+            nrama.notes.remove(edit_note_node);
+            return null;
+        }
         $.log("nrama.notes.create --"+old_content+" to "+new_content);
         var quote = edit_note_node.data('nrama_quote');
-        var old_uuid = edit_note_node.attr('id');
         var new_uuid = uuid();
         //we won't bother waiting until the server has actually deleted the note:
         // in the worst case the delete will fail
@@ -279,6 +305,36 @@ nrama.notes = {
         });
 
         return null;
+    },
+    
+    /**
+     * request delete from server & remove from document if succeeds
+     */
+    remove : function remove(edit_note_node) {
+        var note_uuid = edit_note_node.attr('id');
+        edit_note_node.css('background-color','red');
+        nrama.persist.delete_note(note_uuid, function(){
+            $.log("deleted note "+note_uuid+" from server.");
+            edit_note_node.hide('puff',{},2000, function(){
+                edit_note_node.remove();
+            });
+        });
+
+    },
+    
+    /**
+     * @returns uuids of notes if @param quote has notes attached
+     */
+    find : function find(quote) {
+        var uuids = [];
+        $('._nrama-note').each(function(){
+            var rel_quote_uuid = $(this).data('nrama_quote').uuid;
+            if( rel_quote_uuid == quote.uuid ) {
+                //add uuid of the note to the list
+                uuids.push($(this).attr('id'));
+            }
+        });
+        return uuids;
     }
     
     
@@ -299,6 +355,20 @@ nrama.highlight = function highlight(quote) {
     $('.'+quote.uuid).css('background-color',quote.background_color).data('nrama_quote',quote);
     return null;
 };
+
+/**
+ * todo -- this would ideally remove the elements so that next load works ok.
+ */
+nrama.unhighlight = function unhighlight(quote){
+    $('.'+quote.uuid).
+        removeClass('nrama_quote').
+        removeClass(quote.uuid).
+        css('background-color','red').
+        animate({'background-color':'black'}, function(){
+            $(this).css('background-color','inherit');
+        });
+;
+}
 
 nrama.$j(document).ready(function($){
     $.log("nrama2 starting up");
@@ -337,27 +407,75 @@ nrama.$j(document).ready(function($){
      * click a quote to create a note
      */
     $('._nrama-quote').live('click', function(e){
-        if( !e.shiftKey ) {
-            //shift key cancels notecreation
-            $.log("nrama caught click on quote");
-            $.log('nrama class of $(this):'+$(this).attr('class'));
-            if (nrama.options.debug) {
-                d._this = this;
-            }
-            if( !$(this).hasClass('_nrama-quote')) {
-                throw "nrama false assumtion -- add code to find the quote"
-            }
-            var quote = $(this).data('nrama_quote'); //TODO!
-            nrama.notes.create_edit_note(quote);
+        if( e.shiftKey || e.ctrlKey ) {
+            //shift key cancels notecreation, so does ctrl
+            return;
         }
+        if( e.altKey || e.metaKey ) {
+            //alt key causes quote deletion (in separate handler)
+            return;
+        }   
+        $.log("nrama caught click on quote");
+        $.log('nrama class of $(this):'+$(this).attr('class'));
+        if (nrama.options.debug) {
+            d._this = this;
+        }
+        if( !$(this).hasClass('_nrama-quote')) {
+            throw "nrama false assumtion -- add code to find the quote"
+        }
+        var quote = $(this).data('nrama_quote'); //TODO!
+        nrama.notes.create_edit_note(quote);
     });
     
+    /**
+     * alt- or meta-click a quote to delete it
+     * TODO : check there are no linked notes!
+     */
+    $('._nrama-quote').live('click', function(e){
+        if( e.altKey || e.metaKey ) {
+            var quote = $(this).data('nrama_quote');
+            var note_uuids = nrama.notes.find(quote);
+            if( note_uuids.length != 0 ) {
+                //don't delete quotes with notes attached ...
+                var $quote_nodes = $('.'+quote.uuid);
+                $quote_nodes.css({'border-top':'1px dashed red',
+                                 'border-bottom':'1px dashed red'})
+                //... instead make the relevant notes bounce
+                var idstr = '#' + note_uuids.join(', #');
+                $(idstr).effect('bounce', function(){
+                    $quote_nodes.css({'border-top':'none',
+                                     'border-bottom':'none'},500)
+                });
+                return;
+            }
+            $.log("nrama start deleting quote "+quote.uuid);
+            nrama.quotes.remove(quote);
+            return;
+        }
+    });
+
     /**
      * blur a note-edit node textarea to persist a note 
      */
     $('._nrama-note textarea').live('blur', function(e){
         var edit_note_node = $(this).parents('._nrama-note').first();   //should never need first, this is just to be explicit
         nrama.notes.create(edit_note_node);
+    });
+    
+    /**
+     * click on a note to bring it to the front and highlight the
+     * associated quote
+     */
+    $('._nrama-note').live('click',function(e){
+        $(this).css('z-index',nrama._internal.zindex_counter++);
+        var quote = $(this).data('nrama_quote');
+        var $quote_nodes = $('.'+quote.uuid);
+        $quote_nodes.css({'border-top':'1px dashed black',
+                         'border-bottom':'1px dashed black'});
+        window.setTimeout(function(){
+            $quote_nodes.css({'border-top':0, 'border-bottom':0});            
+        },600);
+        
     });
     
 });
