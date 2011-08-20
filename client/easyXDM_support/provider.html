@@ -15,6 +15,10 @@
          * This is a CORS (Cross-Origin Resource Sharing) and AJAX enabled endpoint for easyXDM.
          * The ACL code is adapted from pmxdr (http://github.com/eligrey/pmxdr/) by Eli Grey (http://eligrey.com/)
          *
+         * Steve Butterfill  : modified this to work with couchDB - data is not encoded if
+         *      processData is set (like jQuery.ajax),
+         *    should handle PUT & DELETE as well as POST
+         *
          */
         // From http://peter.michaux.ca/articles/feature-detection-state-of-the-art-browser-scripting
         function isHostMethod(object, property){
@@ -74,6 +78,7 @@
                             "Content-Type": "application/x-www-form-urlencoded",
                             "X-Requested-With": "XMLHttpRequest"
                         },
+                        processData : true,
                         success: Function.prototype,
                         error: function(msg){
                             throw new Error(msg);
@@ -82,20 +87,26 @@
                         timeout: 10 * 1000
                     }, true);
                     
-                    var isPOST = config.method == "POST";
+                    //var isPOST = config.method == "POST";
+                    var isNotGET = !(config.method == "GET");
                     
-                    // convert the data into a format we can send to the server 
-                    var pairs = [];
-                    for (var key in config.data) {
-                        if (config.data.hasOwnProperty(key)) {
-                            pairs.push(encodeURIComponent(key) + "=" + encodeURIComponent(config.data[key]));
+                    // convert the data into a format we can send to the server
+                    var data;
+                    if( config.processData ){
+                        var pairs = [];
+                        for (var key in config.data) {
+                            if (config.data.hasOwnProperty(key)) {
+                                pairs.push(encodeURIComponent(key) + "=" + encodeURIComponent(config.data[key]));
+                            }
                         }
+                        data = pairs.join("&");
+                    } else {
+                        data = config.data;
                     }
-                    var data = pairs.join("&");
                     
                     // create the XMLHttpRequest object
                     var req = getXhr();
-                    req.open(config.method, config.url + (isPOST ? "" : "?" + data), true);
+                    req.open(config.method, config.url + (isNotGET ? "" : "?" + data), true);
                     
                     // apply the request headers
                     for (var prop in config.headers) {
@@ -191,7 +202,7 @@
                     };
                     
                     // issue the request
-                    req.send(isPOST ? data : "");
+                    req.send(isNotGET ? data : "");
                 }
             }
         });
