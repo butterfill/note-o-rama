@@ -4,17 +4,28 @@
 <!--http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd-->  
 <html xmlns="http://www.w3.org/1999/xhtml"> 
 <head>
-   <!-- for nrama 2 -->
-   <link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css" />
-   <script src="uuid.js"></script>
-   <script src="xpath-firebug.js"></script>
+   <!-- for nrama 2
+      NB this has to be severed locally because easyXDM (a dependency) doesn't
+      support file:// urls.
+   -->
+
+   <!-- <link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css" /> -->
+   <link rel="stylesheet" type="text/css" href="css/jquery-ui.css" /> 
+
+   <script src="javascript/uuid.js"></script>
+   <script src="javascript/jquery.min.js"></script>
+   <script src="javascript/jquery-ui.min.js"></script>
+   <!--
    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.5/jquery-ui.min.js"></script>
-   <script src="jquery.log.js" ></script>
-   <script src="jquery.autogrow-textarea.js" ></script>
-   <script src="rangy-core.js" ></script>
-   <script src="rangy-cssclassapplier.js" ></script>
-   <script src="rangy-serializer.js" ></script>
+   -->
+   <script src="javascript/jquery.log.js" ></script>
+   <script src="javascript/jquery.autogrow-textarea.js" ></script>
+   <script src="javascript/rangy-core.js" ></script>
+   <script src="javascript/rangy-cssclassapplier.js" ></script>
+   <script src="javascript/rangy-serializer.js" ></script>
+   <!-- remove debug for production (use min) -->
+   <script src="javascript/easyXDM.debug.js"></script>
    <script src="nrama2_base.js" ></script>
    
    
@@ -26,10 +37,10 @@
    <!-- xhtml,fn-in,html --> 
    <meta name="src" content="shared.tex" /> 
    <meta name="date" content="2011-08-15 18:26:00" /> 
-   <link rel="stylesheet" type="text/css" href="test/shared.css" /> 
+   <link rel="stylesheet" type="text/css" href="css/shared.css" /> 
 </head>
 <body>
-   <link rel="stylesheet" type="text/css" href="test/shared_modified.css" />
+   <link rel="stylesheet" type="text/css" href="css/shared_modified.css" />
       <div id="readOverlay" class="style-newspaper">
          <div id="readInner" class="margin-x-narrow size-medium">
 

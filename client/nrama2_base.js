@@ -4,6 +4,9 @@
  * I haven't decided what license to use yet, it will depend on what
  * I end up linking to.  For now if you want to use any of this, please
  * just email me (stephen.butterfill@gmail.com)
+ *
+ * For dependencies see test_page.html (some may not be necessary)
+ * 
  */
 
 nrama = {};
@@ -11,6 +14,9 @@ nrama = {};
 nrama.$j = $; //TODO revise
 
 nrama.options = {
+    server_url : 'http://127.0.0.1:5984/',
+    //server_url : 'http://127.0.0.1:8080/test',
+    //server_url : 'http://noteorama.iriscouch.com/',
     user_id : uuid(),
     tags : '',  //space delimited string of tags
     background_color : '#FCF6CF',
@@ -50,10 +56,48 @@ if( nrama.options.debug ) {
 }
 
 nrama._internal = {
-    zindex_counter : 10000  //used for bringing notes to the front
+    zindex_counter : 10000,  //used for bringing notes to the front
+    is_connected : false // true if known to be connected
 }
 
+
+//TESTING
+nrama.rpc = new easyXDM.Rpc({
+                remote: nrama.options.server_url
+            },
+            {
+                remote: {
+                    request: {}
+                }
+            });
+
 nrama.persist = {
+    
+    /**
+     * updates nrama._internal.is_connected
+     */
+    is_connected : function is_connected() {
+        var on_error = function(res){
+            nrama._internal.is_connected = false;
+            $.log("is_connected error"); 
+            if( nrama.options.debug) {
+                d.res=res;
+            }
+        }
+        var on_success = function(res){
+            nrama._internal.is_connected = true;
+            $.log("is_connected success");
+            if( nrama.options.debug) {
+                d.res=res;
+            }
+        }
+        $.ajax( { url : nrama.options.server_url,
+               type : "GET",
+               data : {},
+               dataType : "json",
+               error : on_error,
+               success : on_success  } )
+    },
     
     save_quote : function save_quote(quote, cb) {
         //***TODO***
@@ -132,6 +176,7 @@ nrama.quotes = {
     create : function create(range) {
         return {
             uuid : uuid(),  //uuid function is provided by a dependency
+            type : 'quote',
             content : range.toString(),
             tags : nrama.options.tags, //string: space-separated list of tags this quote is tagged with
             background_color : nrama.options.background_color,
@@ -142,8 +187,8 @@ nrama.quotes = {
             url : document.location.href,
             page_id : nrama.page_id,  //in future this might be doi or similar
             page_title : document.title,
-            created : new Date().getTime(),
             page_order : 0, //TODO
+            created : new Date().getTime(),
             user_id : nrama.options.user_id,
             deleted : false
         }
@@ -282,6 +327,7 @@ nrama.notes = {
         });
         var note = {
             uuid : new_uuid,
+            type : 'note',
             replaces_note : old_uuid,   //this may not be valid (initial uuid is garbage)
             content : new_content,
             quote_uuid : quote.uuid,
@@ -293,6 +339,7 @@ nrama.notes = {
             doc_height : $(document).height(),
             doc_width : $(document).width(),
             created : new Date().getTime(),
+            user_id : nrama.options.user_id,
             deleted : false
         };
         if(nrama.options.debug){
@@ -375,6 +422,7 @@ nrama.$j(document).ready(function($){
 
     rangy.init();
     nrama.notes.init_page();
+    nrama.persist.is_connected();
     
     //configure events
 
@@ -471,10 +519,14 @@ nrama.$j(document).ready(function($){
         var quote = $(this).data('nrama_quote');
         var $quote_nodes = $('.'+quote.uuid);
         $quote_nodes.css({'border-top':'1px dashed black',
-                         'border-bottom':'1px dashed black'});
+                         'border-bottom':'1px dashed black'}).
+                    css({'border-top':'#FFF',
+                         'border-bottom':'red'});
+        /*
         window.setTimeout(function(){
             $quote_nodes.css({'border-top':0, 'border-bottom':0});            
         },600);
+        */          
         
     });
     

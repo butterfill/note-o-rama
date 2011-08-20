@@ -1,0 +1,2 @@
+db_module=nrama2.model
+history_dir=$base/nrama2/sqlobject-history
