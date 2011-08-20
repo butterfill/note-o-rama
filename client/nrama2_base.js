@@ -15,6 +15,7 @@ nrama.$j = $; //TODO revise
 
 nrama.options = {
     server_url : 'http://127.0.0.1:5984/',
+    easyXDM_cors_url : 'http://127.0.0.1:5984/easy_xdm/cors/cors.html',
     //server_url : 'http://127.0.0.1:8080/test',
     //server_url : 'http://noteorama.iriscouch.com/',
     user_id : uuid(),
@@ -61,17 +62,25 @@ nrama._internal = {
 }
 
 
-//TESTING
-nrama.rpc = new easyXDM.Rpc({
-                remote: nrama.options.server_url
-            },
-            {
-                remote: {
-                    request: {}
-                }
-            });
-
 nrama.persist = {
+    
+    /**
+     * because we're doing cross domain stuff we can't just do $.ajax.
+     * Instead we need to call nrama.persist.rpc.request -- it works roughly the same
+     * This depends on some config:
+     *  -- easyXDM.js (and JSON2.js)
+     *  -- installing the cors html file (and its dependencies) on the server at:
+     *        nrama.options.easyXDM_cors_url
+     *        e.g. localhost:5984/easy_xdm/cors/cors.html
+     */
+    rpc : new easyXDM.Rpc({
+                                remote: nrama.options.easyXDM_cors_url
+                            },
+                            {
+                                remote: {
+                                    request: {}
+                                }
+                            }),
     
     /**
      * updates nrama._internal.is_connected
@@ -91,12 +100,15 @@ nrama.persist = {
                 d.res=res;
             }
         }
-        $.ajax( { url : nrama.options.server_url,
-               type : "GET",
-               data : {},
-               dataType : "json",
-               error : on_error,
-               success : on_success  } )
+        nrama.persist.rpc.request( {
+                                        url : nrama.options.server_url,
+                                        // headers : {},
+                                        data : {},
+                                        method : "GET"
+                                    },
+                                    on_success,
+                                    on_error
+                                  )
     },
     
     save_quote : function save_quote(quote, cb) {
