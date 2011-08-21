@@ -10,8 +10,9 @@
  */
 
 nrama = {};
+//TODO convert to noConflict method
 //nrama.$j = jQuery.noConflict();
-nrama.$j = $; //TODO revise
+
 
 //fix uuids so that it doesn't include dashes (no good for couchDB)
 nrama.uuid = function (){
@@ -30,7 +31,7 @@ nrama.options = {
     user_id : nrama.uuid(),
     tags : '',  //space delimited string of tags
     background_color : '#FCF6CF',
-    note_background_color : 'rgba(180,180,180,0.9)',
+    note_background_color : 'rgba(240,240,240,0.9)',
     debug : true,
     note_width : 150, //pixels
     note_default_text : 'type now',
@@ -60,7 +61,6 @@ nrama.options.note_style["width"] = nrama.options.note_width+"px";
 nrama.options.note_editor_style['width'] = nrama.options.note_width+"px";
 
 
-
 nrama._debug = function(){};    //does nothing if not debugging
 if( nrama.options.debug ) {
     //global object contains stuff for debugging
@@ -71,12 +71,32 @@ if( nrama.options.debug ) {
             d[key]=val;
         });
     };
+    //convenience callback for testing async
+    cb = function(res){ nrama._debug({res:res}); };
 }
+
+
+/**
+ * nrama.page_id is a value s.t. two page instances have the same page_id exactly
+ *   when we want to load the same notes & quotes onto those pages.  This is really
+ *   hard to compute (e.g. DOI helps but if different users see an article with
+ *   different formatting, should we load the same notes & quotes?  Probably.)
+ */
+nrama.page_id = document.location.href; //?in future this might be doi or similar
+//this is the node within which notes and quotes are possible and relative to which
+//their locations are defined
+//nrama.root_node = $('#readOverlay')[0]; //will eventually be configured per-site
+//nrama.root_node = document.body;
+//nrama.root_note must be defined after document loaded!
+jQuery(document).ready(function($){
+    nrama.root_node = document.body;
+});
 
 nrama._internal = {
     zindex_counter : 10000,  //used for bringing notes to the front
     is_connected : false // true if known to be connected
 }
+
 
 nrama.persist = {
     
@@ -102,6 +122,8 @@ nrama.persist = {
      * @params are like those for jQuery.ajax
      * if request succeeds, param.success is called with the data parsed as
      * JSON (i.e. you're in trouble if the data is HTML or otherwise not JSON).
+     *
+     * TODO : get with params doesn't seem to work
      */
     ajax : function ajax( params ){
         var _success = function _success(res){
@@ -132,23 +154,28 @@ nrama.persist = {
     /**
      * updates the value of nrama._internal.is_connected
      */
-    is_connected : function is_connected() {
-        var on_error = function(res){
+    is_connected : function is_connected(on_success, on_error) {
+        var _error = function(res){
             nrama._internal.is_connected = false;
-            $.log("is_connected error"); 
+            $.log("nrama is_connected error"); 
             nrama._debug({res:res});
+            if( on_error ) {
+                on_error(res);
+            }
         }
-        var on_success = function(res){
+        var _success = function(res){
             nrama._internal.is_connected = true;
-            $.log("is_connected success");
-            nrama._debug({res:res});
+            $.log("nrama is_connected success");
+            if( on_success ) {
+                on_success(res);
+            }
         }
         nrama.persist.ajax({
                             url : nrama.options.server_url,
                             data : {},
                             method : "GET",
-                            success : on_success,
-                            error : on_error
+                            success : _success,
+                            error : _error
             });
     },
     
@@ -173,22 +200,6 @@ nrama.persist = {
                             data : thing,
                             method : "PUT",
                             success : _success,
-                            error : on_error
-        })
-    },
-    
-    /**
-     * loads a single object
-     * on_success will be called with parsed JSON data
-     */
-    load : function load(uuid, on_success, on_error) {
-        var url = nrama.options.server_url;
-        url += nrama.options.db_name + '/';
-        url += uuid;
-        nrama.persist.ajax({
-                            url : url,
-                            method : "GET",
-                            success : on_success,
                             error : on_error
         })
     },
@@ -222,23 +233,59 @@ nrama.persist = {
                             success : on_success,
                             error : on_error
         })
-        /**
-        nrama.persist.load(uuid, function(thing){
-            if( !thing._rev ) {
-                $.log("error deleting "+uuid);
-                on_error();
-            }
-            var _rev = thing._rev;
-            url += '?rev='+_rev;  //nb parameter name must be 'rev' not '_rev'
-            nrama.persist.ajax({
-                                url : url,
-                                method : "DELETE",
-                                data : {},  //rev is specified as part of URL
-                                success : on_success,
-                                error : on_error
-            })
-        }, on_error );
-        */
+    },
+    
+    /**
+     * loads a single object
+     * on_success will be called with parsed JSON data
+     */
+    load : function load(uuid, on_success, on_error) {
+        var url = nrama.options.server_url;
+        url += nrama.options.db_name + '/';
+        url += uuid;
+        nrama.persist.ajax({
+                            url : url,
+                            method : "GET",
+                            success : on_success,
+                            error : on_error
+        })
+    },
+    
+    
+    /**
+     * loads data from a view for this page.
+     * The view's must be page ids; the page_id of this page will be used (from nrama.page_id).
+     * used by load_quotes, load_notes
+     *
+     * @param view_address {string} is like /_design/nrama/_view/quotes_by_page_id
+     */
+    _load_view : function _load_view(view_address, on_success, on_error) {
+        var url = nrama.options.server_url;
+        url += nrama.options.db_name + '/';
+        url += view_address;
+        nrama.persist.ajax({
+            url : url,
+            method : 'POST',
+            data : {keys:[nrama.page_id]},
+            success : on_success,
+            error : on_error
+        })
+    },
+    
+    /**
+     * get quotes for this page (based on nrama.page_id)
+     */
+    load_quotes : function load_quotes(on_success, on_error) {
+        var view_address = '/_design/nrama/_view/quotes_by_page_id';
+        nrama.persist._load_view(view_address,on_success,on_error);
+    },
+    
+    /**
+     * get notes for this page (based on nrama.page_id)
+     */
+    load_notes : function load_notes(on_success, on_error) {
+        var view_address = '/_design/nrama/_view/notes_by_page_id';
+        nrama.persist._load_view(view_address,on_success,on_error);
     }
    
     
@@ -275,18 +322,11 @@ nrama.serializers = {
 nrama.serializer = nrama.serializers['rangy_1_2'];
 
 /**
- * make this more sophisticated?
- */
-nrama.page_id = document.location.href; //?in future this might be doi or similar
-//this is the node within which notes and quotes are possible and relative to which
-//their locations are defined
-nrama.root_node = $('#readOverlay')[0]; //will eventually be configured per-site
-
-/**
  * depends on :
- *   uuid
+ *   nrama.uuid
  *   nrama.serializer,
  *   nrama.url
+ *   nrama.persist
  */
 nrama.quotes = {
     /**
@@ -305,7 +345,7 @@ nrama.quotes = {
             //the name of the method used to seralise
             xptr_method : nrama.serializer.id,
             url : document.location.href,
-            page_id : nrama.page_id,  //in future this might be doi or similar
+            page_id : nrama.page_id,  
             page_title : document.title,
             page_order : 0, //TODO
             created : new Date().getTime(),
@@ -325,7 +365,7 @@ nrama.quotes = {
     display : function display(quote) {
         var range = nrama.quotes.get_range(quote);
         if( range == null ) {
-            $.log("nrama failed to recover range for quote "+quote.uuid);
+            //$.log("nrama failed to recover range for quote "+quote.uuid);
             return false;
         }
         var _rangy_highlighter = rangy.createCssClassApplier("_nrama-quote "+quote.uuid,false);
@@ -365,6 +405,33 @@ nrama.quotes = {
     },
     
     /**
+     * load quotes from server and display on this page
+     */
+    load : function load(on_success,on_error) {
+        var _success = function _success(data) {
+            $.log('nrama loaded ' + data.rows.length + ' quotes from server');
+            //need to sort by order added to page
+            var _sorter = function(a,b){ return a.value.created - b.value.created };
+            data.rows.sort(_sorter);
+            var _failing_quotes = []
+            $.each(data.rows, function(index,row){
+                var quote = row.value;
+                var success = nrama.quotes.display(quote);
+                if( !success ) {
+                    _failing_quotes.push(quote.uuid);
+                }
+            });
+            if( _failing_quotes.length > 0 ) {
+                $.log('failed to display quotes with uuids: '+_failing_quotes);
+            }
+            if( on_success ) {
+                on_success(data);
+            }
+        }
+        nrama.persist.load_quotes(_success,on_error);
+    },
+    
+    /**
      * recovers the range for the specified quote (if possible --- this may fail,
      * in which case null is returned).
      * NB: depending on serialize method used, this may fail if quote has been
@@ -375,6 +442,8 @@ nrama.quotes = {
             var serializer = nrama.serializers[quote.xptr_method];
             return serializer.deserialize(quote.xptr);
         } catch(error) {
+            $.log('nrama.quotes.display FAIL with range = '+quote.xptr+' for quote '+quote.uuid);
+            $.log('nrama.quotes.display error = '+error);  //not usually informative
             return null;
         }
     },
@@ -416,6 +485,7 @@ nrama.quotes = {
  *
  *  DEPENDS
  *  - uuid
+ *  - nrama.persist
  */
 nrama.notes = {
     init_page : function init_page() {
@@ -442,7 +512,7 @@ nrama.notes = {
             background_color : nrama.options.note_background_color,
             width : nrama.options.note_width,
             url : document.location.href,
-            page_id : nrama.page_id,  //in future this might be doi or similar
+            page_id : nrama.page_id,  
             created : new Date().getTime(),
             user_id : nrama.options.user_id
         };
@@ -480,10 +550,12 @@ nrama.notes = {
                 $.log("nrama unable to get default position for note " + note.uuid + " because no quote offset found for quote " + note.quote_uuid + "(has the quote been added to the page?)");
             }
         } else {
-            var msg = "nrama unable to calculate position for note " + note.uuid + " because no quote_uuid property.";
-            $.log(msg);
+            if( !note.top  ) {
+                var msg = "nrama unable to calculate position for note " + note.uuid + " because no quote_uuid property.";
+                $.log(msg);
+            }
         }
-        note = $.extend(true, note, note_defaults );   //(this would modify note in-place anyway)
+        note = $.extend(true, {}, note_defaults, note );
         
         //start here
         var pos_attrs = {
@@ -503,7 +575,7 @@ nrama.notes = {
                             css(pos_attrs).
                             css(nrama.options.note_style).
                             css('z-index',nrama._internal.zindex_counter++).
-                            css('background-color',nrama.options.note_background_color).
+                            css('background-color',note.background_color || nrama.options.note_background_color).
                             data('nrama_note',note).
                             append(inner_div).
                             appendTo('#_nrama_notes').
@@ -596,6 +668,27 @@ nrama.notes = {
         });
 
     },
+
+    /**
+     * load notes from server and display on this page
+     * NB: if any notes don't have position information, should be run after
+     *     quotes have been loaded and displayed 
+     */
+    load : function load(on_success, on_error) {
+        var _success = function _success(data) {
+            $.log('nrama loaded ' + data.rows.length + ' notes from server');
+            $.each(data.rows, function(index,row){
+                var note = row.value;
+                nrama.notes.display(note, {focus:false});
+            });
+            if( on_success ) {
+                on_success(data);
+            }
+        }
+        nrama.persist.load_notes(_success,on_error);
+    },
+    
+
     
     /**
      * @returns uuids of notes if @param quote has notes attached
@@ -616,12 +709,16 @@ nrama.notes = {
 }
 
 
-nrama.$j(document).ready(function($){
+jQuery(document).ready(function($){
     $.log("nrama2 starting up");
 
     rangy.init();
     nrama.notes.init_page();
-    nrama.persist.is_connected();
+    nrama.persist.is_connected(function(){
+        $.log('loading notes and quotes ...');
+        nrama.quotes.load();
+        nrama.notes.load();
+    });
     
     //configure events
 
