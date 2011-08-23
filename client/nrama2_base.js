@@ -6,18 +6,17 @@
  * just email me (stephen.butterfill@gmail.com)
  *
  * For dependencies see test_page.html (some may not be necessary)
+ *
  * 
  */
 
-if( typeof(nrama)=="undefined" ) {
-    nrama={};
-}
-
 /**
+ * this function is called when we're ready to roll.
+ * before this is called, almost nothing should happen (see near end of file).
  * wrap everything in a function because when used as a bookmarklet we need
  * to wait for jQuery & other libraries to load before doing anything at all.
  */
-nrama.init=function init(){
+_nrama_init=function _nrama_init(){
     //configure jQuery.log 
     (function($){
       $.extend({"log":function(){ 
@@ -80,6 +79,10 @@ nrama.init=function init(){
     nrama.options.note_style["width"] = nrama.options.note_width+"px";
     nrama.options.note_editor_style['width'] = nrama.options.note_width+"px";
     
+    nrama._internal = {
+        zindex_counter : 10000,  //used for bringing notes to the front
+        is_connected : false // true if known to be connected
+    }
     
     nrama._debug = function(){};    //does nothing if not debugging
     if( nrama.options.debug ) {
@@ -110,11 +113,6 @@ nrama.init=function init(){
     jQuery(document).ready(function($){
         nrama.root_node = document.body;
     });
-    
-    nrama._internal = {
-        zindex_counter : 10000,  //used for bringing notes to the front
-        is_connected : false // true if known to be connected
-    }
     
     
     nrama.persist = {
@@ -443,11 +441,16 @@ nrama.init=function init(){
          * cannot be decoded; fails silently.  The added nodes will have the
          * quote object stored with jQuery.data (key:'nrama_quote')
          *
+         * Checks that quote not already on page; will not re-display if it is.
+         *
          * depends Rangy + its highlight module
          *
-         * @returns true if successful, false otherwise
+         * @returns true if successful (or quote already displayed), false otherwise
          */
         display : function display(quote) {
+            if( $('.'+quote.uuid).length != 0 ) {
+                return true;  //quote already displayed
+            }
             var range = nrama.quotes.get_range(quote);
             if( range == null ) {
                 //$.log("nrama failed to recover range for quote "+quote.uuid);
@@ -503,7 +506,7 @@ nrama.init=function init(){
                 var _failing_quotes = []
                 $.each(data.rows, function(index,row){
                     var quote = row.value;
-                    var success = nrama.quotes.display(quote);
+                    var success = nrama.quotes.display(quote);  //this won't re-display quotes already present
                     if( !success ) {
                         _failing_quotes.push(quote.uuid);
                     }
@@ -611,6 +614,8 @@ nrama.init=function init(){
         /**
          * dispaly a note on the page -- i.e. create and style the HTML and add it
          * to the approriate part of the document (the #_nrama_notes).
+         *
+         * If note already displayed, this will undisplay it first.
          */
         display : function display(note, options) {
             //apply defaults to options
@@ -618,6 +623,10 @@ nrama.init=function init(){
                 focus : true
             };
             var settings = $.extend(true, {}, options_defaults, options );
+            
+            if( $('#'+note.uuid).length != 0 ) {
+                nrama.notes.undisplay(note);
+            }
             
             // apply defaults to notes -- for positioning 
             var note_defaults = {};
@@ -676,6 +685,12 @@ nrama.init=function init(){
             
         },
         
+        /**
+         * remove HTML node represening note from the page
+         */
+        undisplay : function undisplay(note) {
+            $('#'+note.uuid).remove();
+        },
         
         /**
          * update new note
@@ -688,7 +703,7 @@ nrama.init=function init(){
             
             var $textarea = $('textarea', edit_note_node);
             var new_content = $textarea.val();
-            if( new_content == '' ) {
+            if( $.trim(new_content) == '' ) {
                 //delete note because note content is empty
                 $.log("nrama.notes.update -- deleting note "+edit_note_node.attr('id'));
                 nrama.notes.remove(edit_note_node);
@@ -783,7 +798,10 @@ nrama.init=function init(){
         
     }
     
-    
+    /**
+     * main setup stuff 
+     * TODO : problems are caused if the bookmarklet is loaded several times.
+     */
     jQuery(document).ready(function($){
         $.log("nrama2 starting up");
     
@@ -795,8 +813,8 @@ nrama.init=function init(){
             nrama.notes.load();
         });
         
-        //configure events
-    
+        // --- configure events ---
+        
         /**
          * quote : highlight creates a quote
          */
@@ -902,38 +920,45 @@ nrama.init=function init(){
 }
 
 /**
- * uncomment this to use in a page (and comment the call to nrama.loadScript).
+ * this should be the only thing that executes on load.
+ * make sure nothing happens nrama is already loaded!
  */
-//nrama.init();
+if( typeof(nrama) == 'undefined' ) {
+    nrama = {};     //the only global variable --- holds everything
 
-/**
- * This can only be used when in bookmarklet mode!
- *   (Otherwise document may not be ready.)
- * load supporting libraries; only start work after they loaded
- * thank you http://stackoverflow.com/questions/756382/bookmarklet-wait-until-javascript-is-loaded
- */
-nrama.loadScript = function loadScript(url, callback) {
-        var head = document.getElementsByTagName("head")[0];
-        var script = document.createElement("script");
-        script.src = url;
-
-        // Attach handlers for all browsers
-        var done = false;
-        script.onload = script.onreadystatechange = function() {
-                if( !done && ( !this.readyState 
-                                        || this.readyState == "loaded" 
-                                        || this.readyState == "complete") ) {
-                        done = true;
-                        callback();
-
-                        // Handle memory leak in IE
-                        script.onload = script.onreadystatechange = null;
-                        head.removeChild( script );
-                }
-        };
-        head.appendChild(script);
+    /**
+     * uncomment this to use in a page (and comment the call to nrama.loadScript).
+     */
+    //_nrama_init();
+    
+    /**
+     * This can only be used when in bookmarklet mode!
+     *   (Otherwise document may not be ready.)
+     * load supporting libraries; only start work after they loaded
+     * thank you http://stackoverflow.com/questions/756382/bookmarklet-wait-until-javascript-is-loaded
+     */
+    nrama.loadScript = function loadScript(url, callback) {
+            var head = document.getElementsByTagName("head")[0];
+            var script = document.createElement("script");
+            script.src = url;
+    
+            // Attach handlers for all browsers
+            var done = false;
+            script.onload = script.onreadystatechange = function() {
+                    if( !done && ( !this.readyState 
+                                            || this.readyState == "loaded" 
+                                            || this.readyState == "complete") ) {
+                            done = true;
+                            callback();
+    
+                            // Handle memory leak in IE
+                            script.onload = script.onreadystatechange = null;
+                            head.removeChild( script );
+                    }
+            };
+            head.appendChild(script);
+    }
+    nrama.loadScript("http://localhost:5984/nrama/bookmarklet.js/lib.min.js", function() {
+        _nrama_init();
+    });
 }
-nrama.loadScript("http://localhost:5984/nrama/bookmarklet.js/lib.min.js", function() {
-    nrama.init();
-});
-
