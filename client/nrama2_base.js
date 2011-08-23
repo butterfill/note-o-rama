@@ -9,6 +9,18 @@
  * 
  */
 
+//configure jQuery.log 
+(function($){
+	$.extend({"log":function(){ 
+			try { 
+				console.log(arguments[0]);
+				return true;
+			} catch(e) {
+        return false;
+			}
+		}});
+})(jQuery);
+
 nrama = {};
 //TODO convert to noConflict method
 //nrama.$j = jQuery.noConflict();
@@ -23,15 +35,16 @@ nrama.uuid = function (){
 
 
 nrama.options = {
-    server_url : 'http://127.0.0.1:5984/',
+    server_url : 'http://127.0.0.1:5984/',  //must include trailing slash
+    //server_url : 'http://noteorama.iriscouch.com/',
     db_name : 'nrama',
     easyXDM_cors_url : 'http://127.0.0.1:5984/easy_xdm/cors/provider.html',
-    //server_url : 'http://127.0.0.1:8080/test',
-    //server_url : 'http://noteorama.iriscouch.com/',
-    user_id : nrama.uuid(),
+    user_id : 'steve@gmail.com', // nrama.uuid(),
+    password : 'new',   //must think of clever way to store this
     tags : '',  //space delimited string of tags
     background_color : '#FCF6CF',
     note_background_color : 'rgba(240,240,240,0.9)',
+    persist_started_color : '#FFBF00',  //#FFBF00=orange
     debug : true,
     note_width : 150, //pixels
     note_default_text : 'type now',
@@ -86,7 +99,6 @@ nrama.page_id = document.location.href; //?in future this might be doi or simila
 //this is the node within which notes and quotes are possible and relative to which
 //their locations are defined
 //nrama.root_node = $('#readOverlay')[0]; //will eventually be configured per-site
-//nrama.root_node = document.body;
 //nrama.root_note must be defined after document loaded!
 jQuery(document).ready(function($){
     nrama.root_node = document.body;
@@ -138,7 +150,15 @@ nrama.persist = {
                 params.success(data);
             }
             
-        }
+        };
+        var _error = function _error(res) {
+            var data = res.data || {};
+            var message = res.message || '';
+            nrama._debug({data:data,message:message});
+            if( params.error ) {
+                params.error( data, message ); 
+            }
+        };
         nrama.persist.rpc.request({
             url : params.url,
             data : JSON.stringify(params.data)|| {},
@@ -147,9 +167,44 @@ nrama.persist = {
             headers : params.headers || {'Content-Type': 'application/json'}
             },
             _success,
-            params.error || function(){}
+            _error
         );
     },
+    
+    login : function login(on_success, on_error) {
+        nrama.persist.ajax({
+            url:nrama.options.server_url+'_session',
+            method:'POST',
+            success:on_success,
+            error:on_error,
+            data:{name:nrama.options.user_id,password:nrama.options.password}
+        });        
+    },
+    
+    logout : function logout(on_success, on_error) {
+        nrama.persist.ajax({
+            url:nrama.options.server_url+'_session',
+            method:'DELETE',
+            success:on_success,
+            error:on_error
+        });        
+    },
+    
+    is_logged_in : function is_logged_in (on_success, on_error) {
+        var _success = function(res) {
+            //logged in iff res.userCtx.name is not null
+            if( on_success ) {
+                on_success( res.userCtx.name != null);
+            }
+        };
+        nrama.persist.ajax({
+            url:nrama.options.server_url+'_session',
+            method:'GET',
+            success:_success,
+            error:on_error
+        });
+    },
+
     
     /**
      * updates the value of nrama._internal.is_connected
@@ -183,9 +238,15 @@ nrama.persist = {
      * save a note or a quote (or anything with a uuid that JSON.stringify will
      *  work on, really).
      * If successful, will also update a _rev property on thing
+     *
+     * clone_on_conflict will update thing with its new properties
      */
-    save : function save(thing, on_success, on_error) {
-        $.log('nrama save ' + thing.uuid+' started');
+    save : function save(thing, on_success, on_error, options) {
+        var defaults = {
+            clone_on_conflict : false
+        };
+        var settings = $.extend(true, {}, defaults, options);
+        $.log('nrama save ' + (thing.type || '') +' '+ thing.uuid+' started');
         var url = nrama.options.server_url;
         url += nrama.options.db_name + '/';
         url += thing.uuid;
@@ -195,12 +256,30 @@ nrama.persist = {
                 on_success(data);
             }
         };
+        var _error = function _error(data, message) {
+            $.log("nrama error on save "+thing.uuid);
+            if( settings.clone_on_conflict ) {
+                if( data.status == 409 ) {
+                    $.log('nrama conflict on save --- cloning');
+                    var new_uuid = nrama.uuid();
+                    var updates = { uuid : new_uuid, replaces_uuid : thing.uuid };
+                    thing = $.extend(true, thing, updates); 
+                    delete thing._rev;  //revision is no longer valid
+                    nrama._debug({updated_thing:thing});
+                    settings.clone_on_conflict = false;  //don't loop cloning
+                    nrama.persist.save(thing, on_success, on_error, settings);
+                }
+            }
+            if( on_error ) {
+                on_error(data,message);
+            }
+        };
         nrama.persist.ajax({
                             url : url,
                             data : thing,
                             method : "PUT",
                             success : _success,
-                            error : on_error
+                            error : _error
         })
     },
     
@@ -385,7 +464,8 @@ nrama.quotes = {
      */
     undisplay : function undisplay(quote) {
         $('.'+quote.uuid).
-            removeClass('nrama_quote').
+            removeClass('_nrama-quote').
+            //unbind().
             //removeClass(quote.uuid). //not sure whether I want to do this yet
             css('background-color','red').
             animate({'background-color':'black'}, function(){
@@ -408,6 +488,7 @@ nrama.quotes = {
      * load quotes from server and display on this page
      */
     load : function load(on_success,on_error) {
+        $.log('nrama starting to load quotes ...');
         var _success = function _success(data) {
             $.log('nrama loaded ' + data.rows.length + ' quotes from server');
             //need to sort by order added to page
@@ -593,44 +674,30 @@ nrama.notes = {
     /**
      * update new note
      * This handles display, logic & persistence.
-     * (strictly speaking this will delete the previous note object and
-     *   create a new one --- but the UI will not show this.)
      * if & when successfully persisted, then store the note as a jquery.data attr
      * on the edit_note_node (key:nrama_note)
      */
     update : function update(edit_note_node) {
-        var old_note = edit_note_node.data('nrama_note');
+        var note = edit_note_node.data('nrama_note');
         
-        //if note content is empty, delete it
         var $textarea = $('textarea', edit_note_node);
         var new_content = $textarea.val();
         if( new_content == '' ) {
+            //delete note because note content is empty
             $.log("nrama.notes.update -- deleting note "+edit_note_node.attr('id'));
             nrama.notes.remove(edit_note_node);
-            return null;
+            return;
         }
         
         //if content unchanged, do nothing (so moving a note won't trigger a change)
-        var old_content = old_note.content;
+        var old_content = note.content;
         if( old_content == new_content ) {
             $.log("nrama.notes.update -- note content unchanged, will not persist");
-            return null;
+            return;
         }
         $.log("nrama.notes.update --"+old_content+" to "+new_content);
 
-        //delete the old note
-        //we won't bother waiting until the server has actually deleted the note:
-        // in the worst case the delete will fail
-        var old_uuid = old_note.uuid;   //just in case the object is destroyed before callback
-        nrama.persist.rm(old_note, function(){
-            $.log("deleted note "+old_uuid+" from server.");
-        });
-
-        //build the new note from the old note
-        var new_uuid = nrama.uuid();
         var updates = {
-            uuid : new_uuid,
-            replaces_note : old_uuid,   //this may not refer to anything that was persisted (initial uuid is never persisted)
             content : new_content,
             background_color : edit_note_node.css('background-color'),
             width : edit_note_node.width(),
@@ -640,17 +707,19 @@ nrama.notes = {
             doc_width : $(document).width(),
             updated : new Date().getTime()
         };
-        var new_note = $.extend(true, {}, old_note, updates);
-        nrama._debug({note:new_note});
-        nrama.persist.save(new_note, function(){
-            $.log("nrama persisted note uuid:"+new_uuid+" for quote:"+new_note.quote_uuid);
-            //delay updating the HTML node with the new data until it has been persisted.
-            // that way, any failure to persist will result in a repeat persist attempt
-            edit_note_node.data('nrama_note',new_note).
-                attr('id',new_uuid);    //update id to refer to new note uuid
-        });
-
-        return null;
+        var note = $.extend(true, note, updates);   //assignment not strictly necessary here
+        nrama._debug({msg:'updating the following note',note:note});
+        //change bkg to signal save in progress
+        edit_note_node.css('background-color',nrama.options.persist_started_color);
+        nrama.persist.save(note,
+            function(){
+                $.log("nrama persisted updated note uuid:"+note.uuid+" for quote:"+note.quote_uuid);
+                edit_note_node.attr('id',note.uuid);    //may have changed (save can clone)
+                edit_note_node.css('background-color',note.background_color);
+            },
+            function(){}, //error
+            { clone_on_conflict : true } //options
+        );
     },
     
     /**
@@ -761,11 +830,6 @@ jQuery(document).ready(function($){
             //alt key causes quote deletion (in separate handler)
             return;
         }   
-        //$.log("nrama caught click on quote");
-        //$.log('nrama class of $(this):'+$(this).attr('class'));
-        if( !$(this).hasClass('_nrama-quote')) {
-            throw "nrama false assumtion -- add code to find the quote"
-        }
         var quote = $(this).data('nrama_quote');
         var note = nrama.notes.create({quote_uuid:quote.uuid});
         nrama.notes.display(note);
