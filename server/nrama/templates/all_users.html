@@ -1,0 +1,12 @@
+<h1>All note-o-rama users</h1>
+
+{?users}
+  <ul>
+  {#users}
+    <!-- <li><a href="{baseURL}/{id}">{value}</a></li> -->
+    <li>{key} : {value}</li>
+  {/users}
+    </ul>
+  {:else}
+  <p>No users posts</p>
+{/users}
