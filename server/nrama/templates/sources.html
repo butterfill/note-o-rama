@@ -1,0 +1,12 @@
+<h1>Sources | Note-o-rama</h1>
+
+{?sources}
+  <ul>
+  {#sources}
+    <!-- <li><a href="{baseURL}/{id}">{value}</a></li> -->
+    <li>{page_id} ({nof_items})</li>
+  {/sources}
+    </ul>
+  {:else}
+  <p>No sources</p>
+{/sources}

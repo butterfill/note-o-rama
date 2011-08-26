@@ -14,19 +14,25 @@ exports.all_user_ids = {
     }
 };
 
-exports.notes_by_page_id = {
-    map: function(doc) {
-        if(doc.type && doc.type=='note' &&doc.page_id ){
-          emit(doc.page_id,doc);
-        }
-    }    
-};
-
-exports.quotes_by_page_id = {
+exports.pageId_type_userId = {
     map : function(doc) {
-        if(doc.type && doc.type=='quote' ){
-          emit(doc.page_id,doc);
+        if( doc.page_id && doc.type ) {
+            if( doc.user_id ) {
+                emit([doc.page_id, doc.type, doc.user_id],doc);
+            } else {
+            //no user_id
+            emit([doc.page_id, doc.type, null],doc);
+            }
         }
     }
 };
 
+// http://localhost:5984/nrama/_design/nrama/_view/userId_pageId?group=true
+exports.userId_pageId= {
+    map : function(doc) {
+            if( doc.user_id && doc.page_id ) {
+                emit([doc.user_id, doc.page_id]);
+            }
+        },
+    reduce : "_count"
+};

@@ -1,0 +1,38 @@
+<h1>{title} | Note-o-rama</h1>
+
+{?my_quotes}
+  <h2>Your notes</h2>
+  {#my_quotes}
+  <p>[{_id}] {content}</p>
+        {?notes}
+            <ul>
+              {#notes}
+                <li>
+                    {#write_user_id}{/write_user_id}{content}
+                </li>
+              {/notes}
+            </ul>
+        {/notes}
+    {/my_quotes}
+  {:else}
+  <p>You have no notes on this source.</p>
+{/my_quotes}
+
+
+{?all_other_quotes}
+  <h2>Other's notes</h2>
+  {#all_other_quotes}
+  <p>[{_id}] {content}</p>
+        {?notes}
+            <ul>
+              {#notes}
+                <li>{content}</li>
+              {/notes}
+            </ul>
+        {/notes}
+    {/all_other_quotes}
+  {:else}
+    <p>No one else has notes</p>
+{/all_other_quotes}
+
+
