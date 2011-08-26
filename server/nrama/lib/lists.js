@@ -97,6 +97,14 @@ exports.source = function(head,req) {
         row = getRow();
     }
     
+    var db = require('kanso/db');
+    var test_doc ;
+    if( req.client ) {
+        test_doc = db.getDoc('njs9f48a397ded441f69d4e221497b71bed', {}, function(a,b){console.log('a,b');window.a=a;window.b=b;});
+    } else {
+        test_doc={content:'<server_rendered>'};
+    }
+    
     // -- sort quotes by page_order
     var quote_sorter = function(a,b){ return a.page_order > b.page_order };
     my_quotes.sort(quote_sorter);
@@ -112,13 +120,13 @@ exports.source = function(head,req) {
     attach_notes(my_quotes);
     attach_notes(all_other_quotes);
 
-    // -- function that writes user name only if a note (or other thing) is not from the current user
-    var write_user_id = function(chunk, context){
+    // -- function that writes note; as text area only if a note (or other thing) is rom the current user
+    var write_note = function(chunk, context){
         var thing_user_id = context.get('user_id');
         if( thing_user_id != user_id ) {
-            return chunk.write('<span class="other-user">['+thing_user_id+']</span> ');
+            return chunk.write('<span class="other-user">['+thing_user_id+']</span>');
         } else {
-            return chunk.write('');
+            return chunk.write('<textarea class="note">'+context.get('content')+'</textarea>');
         }
     };
     
@@ -126,7 +134,8 @@ exports.source = function(head,req) {
         title : (title || 'untitled'),
         my_quotes : my_quotes,
         all_other_quotes : all_other_quotes,
-        write_user_id : write_user_id
+        write_note : write_note,
+        test_doc : test_doc
     };
     var content = templates.render('source.html', req, data);
 

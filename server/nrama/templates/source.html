@@ -1,15 +1,15 @@
-<h1>{title} | Note-o-rama</h1>
+<h1>{title} | <span id="nrama_logo">Note-o-rama</span></h1>
+
+<h3>test_doc: {#test_doc}{content}{/test_doc}</h3>
 
 {?my_quotes}
   <h2>Your notes</h2>
   {#my_quotes}
   <p>[{_id}] {content}</p>
         {?notes}
-            <ul>
+            <ul class="_sort-me">
               {#notes}
-                <li>
-                    {#write_user_id}{/write_user_id}{content}
-                </li>
+                <li>{#write_note}{/write_note}</li>
               {/notes}
             </ul>
         {/notes}
@@ -26,13 +26,13 @@
         {?notes}
             <ul>
               {#notes}
-                <li>{content}</li>
+                <li>{#write_note}{/write_note}</li>
               {/notes}
             </ul>
         {/notes}
     {/all_other_quotes}
   {:else}
-    <p>No one else has notes</p>
+    <h2>No one else has notes</h2>
 {/all_other_quotes}
 
 
