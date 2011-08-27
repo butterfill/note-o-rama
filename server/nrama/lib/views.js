@@ -38,7 +38,7 @@ exports.userId_pageId= {
     reduce : "_count"
 };
 
-//http://localhost:5984/nrama/_design/nrama/_view/pageId_userId
+//http://localhost:5984/nrama/_design/nrama/_view/pageId_userId?key=["http://en.wikipedia.org/wiki/Komodo_dragons?h=i","steve@gmail.com"]
 exports.pageId_userId= {
     map : function(doc) {
             if( doc.user_id && doc.page_id ) {

@@ -1,15 +1,36 @@
 <h1>{title}</h1>
 {?quotes}
     {#quotes}
-        <p class="quote">[<span class="quote-id">{_id}</span>] "<span id="{_id}" class="quote-content">{content}</span>"
+        <div class="quote" id="{_id}" >
+            {?is_user_page}
+            {:else}
+                [<span class='quote-user_id'>{user_id}</span>]
+            {/is_user_page}
+            "<span class="quote-content">{content}</span>"
+            {?is_user_page}
+                <span class="add-a-note">[+]</span>
+            {/is_user_page}
             <ul class="notes _sort-me">
                 {#notes}
-                    <li class="note"><textarea id="{_id}" class="note-content">{content}</textarea></li>
+                    <li class="note">
+                        {! display textarea if user can edit on this page, otherwise just the text !}
+                        {?is_user_page}
+                            <textarea id="{_id}" class="note-content">{content}</textarea>
+                        {:else}
+                            [<span class='quote-user_id'>{user_id}</span>] <span class="note-content">{content}</span>
+                        {/is_user_page}
+                    </li>
                 {/notes}
             </ul>
-        </p>
+        </div>
     {/quotes}
     {:else}
   <p>You have no notes on this source.</p>
 {/quotes}
 
+    <script>
+        if( typeof($)!='undefined' ) {
+            $('._sort-me').sortlist();
+            $('textarea.note-content').autogrow();
+        }
+    </script>

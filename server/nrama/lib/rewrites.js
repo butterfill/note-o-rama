@@ -14,6 +14,11 @@ module.exports = [
         to : '_list/source/pageId_userId'
     },
     {
+        from : '/user/:user_id/source/:url',
+        to : '_list/source/pageId_userId',
+        query : { key : [":url",":user_id"] }
+    },
+    {
         from: '/all_users',
         to: '_list/all_users/all_user_ids',
         method : 'GET',

@@ -21,6 +21,7 @@ body {
     font-family: Palatino,serif;
     color: #292626;
     margin: 0;
+    max-width : 800px;
 }
 
 #content {
@@ -28,12 +29,16 @@ body {
     margin-right : 25px;
 }
 
+.note-content {
+    margin-bottom: 1em;
+}
+
 ul.notes {
     -webkit-padding-start : 0px;
     padding-left : 2em;
 }
 
-li.note {
+li.note, li.add-a-note {
     display:block;
     
 }
