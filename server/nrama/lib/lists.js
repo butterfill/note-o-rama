@@ -1,7 +1,9 @@
 /**
  * List functions to be exported from the design doc.
  */
-var templates = require('kanso/templates');
+var templates = require('kanso/templates'),
+    events = require('kanso/events'),
+    db = require('kanso/db');
 
 exports.all_users = function (head, req) {
 
@@ -50,10 +52,12 @@ exports.sources = function(head, req) {
     return {title: 'note-o-rama : my sources', content: content };
 };
 
+
+
+
 /**
- * notes & quotes on a particular source, with the currently logged in user's first.
- *
- * works with view pageId_type_userId
+ * notes & quotes on a particular source
+ * works with view pageId_userId
  *
  * e.g.
  *   http://localhost:5984/nrama/_design/nrama/_rewrite/source?startkey=[%22http://en.wikipedia.org/wiki/Komodo_dragons%22]&endkey=[%22http://en.wikipedia.org/wiki/Komodo_dragons%22,{}]
@@ -62,11 +66,10 @@ exports.sources = function(head, req) {
 exports.source = function(head,req) {
     start({code: 200, headers: {'Content-Type': 'text/html'}});
 
-    var user_id = req.userCtx.name;
-
-    var my_quotes = [];
-    var all_other_quotes = [];
+    var quotes = [];
+    var find_quote = {};    //indexed by _id
     var notes_for_quotes = {};
+    var find_note = {}; //indexed by _id
     
     var title = null;
     var row = getRow();
@@ -80,14 +83,12 @@ exports.source = function(head,req) {
         
         if( thing.type == 'quote' ) {
             var quote = thing;
-            if( user_id == quote.user_id ) {
-                my_quotes.push(quote);
-            } else {
-                all_other_quotes.push(quote);
-            }
+            find_quote[quote._id] = quote;
+            quotes.push(quote);
         }
         if( thing.type == 'note' ) {
             var note = thing;
+            find_note[note._id] = note;
             if( !notes_for_quotes[note.quote_uuid]  ) {
                 notes_for_quotes[note.quote_uuid] = [];
             }
@@ -97,46 +98,62 @@ exports.source = function(head,req) {
         row = getRow();
     }
     
-    var db = require('kanso/db');
-    var test_doc ;
-    if( req.client ) {
-        test_doc = db.getDoc('njs9f48a397ded441f69d4e221497b71bed', {}, function(a,b){console.log('a,b');window.a=a;window.b=b;});
-    } else {
-        test_doc={content:'<server_rendered>'};
-    }
-    
     // -- sort quotes by page_order
     var quote_sorter = function(a,b){ return a.page_order > b.page_order };
-    my_quotes.sort(quote_sorter);
-    all_other_quotes.sort(quote_sorter);
-
+    quotes.sort(quote_sorter);
+    
     // -- attach notes to quotes
-    var attach_notes = function attach_notes(quote_list) {
-        for( idx in quote_list ) {
-            var quote = quote_list[idx];
-            quote.notes = notes_for_quotes[quote._id] || [];
-        }
-    };
-    attach_notes(my_quotes);
-    attach_notes(all_other_quotes);
-
-    // -- function that writes note; as text area only if a note (or other thing) is rom the current user
-    var write_note = function(chunk, context){
-        var thing_user_id = context.get('user_id');
-        if( thing_user_id != user_id ) {
-            return chunk.write('<span class="other-user">['+thing_user_id+']</span>');
-        } else {
-            return chunk.write('<textarea class="note">'+context.get('content')+'</textarea>');
-        }
-    };
+    for( idx in quotes ) {
+        var quote = quotes[idx];
+        quote.notes = notes_for_quotes[quote._id] || [];
+    }
+    
+    // -- configure note edit events
+    if( req.client ) {
+        $('textarea.note-content').die().live('blur', function(){
+            //console.log('caught blur: saving note ...');
+            var $note = $(this);
+            $note.attr('disabled','disabled');
+            var note_id = $(this).attr('id');
+            var note = find_note[note_id];
+            var old_content = note.content;
+            var new_content = $note.val();
+            if( old_content == new_content ) {
+                $note.removeAttr('disabled');
+                return;
+            }
+            if( new_content == '' ) {
+                //delete note
+                db.removeDoc(note, {}, function(error,data){
+                    if( !error ) {
+                        $note.parents('li.note').hide(1000, function(){ $note.remove(); });
+                    } else {
+                        note.content = old_content;
+                        $note.css('color','red').removeAttr('disabled');
+                    }
+                });
+                return;
+            } 
+            $note.css('color','#3300CC').css('text-shadow','0 0 2px #555555');
+            note.content = new_content;
+            db.saveDoc(note, {}, function(error, data){
+                if( !error ) {
+                    note._rev = data.rev;
+                    $note.css('color','black').css('text-shadow','none').removeAttr('disabled');
+                } else {
+                    note.content = old_content;
+                    $note.css('color','red').removeAttr('disabled');
+                }
+            });        
+        });
+    }
     
     var data = {
         title : (title || 'untitled'),
-        my_quotes : my_quotes,
-        all_other_quotes : all_other_quotes,
-        write_note : write_note,
-        test_doc : test_doc
+        quotes : quotes,
+        call_me_sometime : function(){return 'hi --- call_me_sometime ';}
     };
+    
     var content = templates.render('source.html', req, data);
 
     return {title: 'note-o-rama : '+title, content: content };

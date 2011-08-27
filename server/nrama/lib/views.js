@@ -14,6 +14,7 @@ exports.all_user_ids = {
     }
 };
 
+//used by the bookmarklet client to get all quotes, then all notes.  TODO? remove tyepe?
 exports.pageId_type_userId = {
     map : function(doc) {
         if( doc.page_id && doc.type ) {
@@ -35,4 +36,13 @@ exports.userId_pageId= {
             }
         },
     reduce : "_count"
+};
+
+//http://localhost:5984/nrama/_design/nrama/_view/pageId_userId
+exports.pageId_userId= {
+    map : function(doc) {
+            if( doc.user_id && doc.page_id ) {
+                emit([doc.page_id, doc.user_id],doc);
+            }
+        }
 };

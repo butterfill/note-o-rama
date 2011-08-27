@@ -5,23 +5,11 @@
 
 #nrama_logo {
     color : black;
+    padding-left : 1em;
     text-shadow : 0 0 2px #fff, 0 0 3px #fff, 0 0 5px #fff, 0 0 7px #ff2d95, 0 0 10px #ff2d95, 0 0 14px #ff2d95, 0 0 17px #ff2d95, 0 0 27px #ff2d95;
+    display : inline;
 }
 
-@font-face {
-    font-family: "Iconic Stroke";
-    src: url('fonts/iconic_stroke.eot') !important;
-    src: url('fonts/iconic_stroke.ttf') format('truetype');
-}
-
-.icon {
-    /*position: relative;*/
-    padding-right: 0.143em;
-    font-family: "Iconic Stroke";
-    color: #999;
-    font-size: 2em;
-    /*top: 0.143em;*/
-}
 
 a:hover .icon {
     color: #666;
@@ -30,13 +18,34 @@ a:hover .icon {
 
 body {
     font-size: 14px;
-    font-family: 'Lucida Grande', 'Lucida Sans Unicode', verdana, geneva, sans-serif;
+    font-family: Palatino,serif;
     color: #292626;
     margin: 0;
 }
 
 #content {
-    padding-left: 25px;
+    margin-left: 25px;
+    margin-right : 25px;
+}
+
+ul.notes {
+    -webkit-padding-start : 0px;
+    padding-left : 2em;
+}
+
+li.note {
+    display:block;
+    
+}
+textarea.note-content {
+    font-size: 14px;
+    font-family: Palatino,serif;
+    border : none;
+    resize:none;
+    width:100%;
+    height:auto;
+    padding : 0;
+    margin : 0;
 }
 
 th {
@@ -48,49 +57,10 @@ th {
 }
 
 p {
-    margin: 2em 0;
+    margin: 1em 0;
     padding: 0;
 }
-h1 {
-    font-size: 1.236em;
-    font-family: 'Helvetica Neue', 'Helvetica', Arial, FreeSans, sans-serif;
-    background: #000;
-    color: #999;
-    height: 2em;
-    line-height: 2em;
-    margin: 0;
-    padding: 0 0 0 .5em;
-    position: relative;
-    font-weight: normal;
-}
-h1 a {
-    text-decoration: none;
-}
-h1 a:hover {
-    color: #ccc;
-}
-h1 :link, h1 :visited, h1 strong {
-    padding: .4em .5em;
-}
-h1 :link, h1 :visited {
-    background: url(./path.gif) 100% 50% no-repeat;
-    color: #bbb;
-    cursor: pointer;
-    padding-right: 2.2em;
-}
-h1 strong {
-    color: #fff;
-    font-weight: normal;
-    padding-right: 25px;
-}
-h1 strong a {
-    color:#fff !important;
-    background:none !important;
-}
 
-h2 {
-    margin: 18px 0;
-}
 
 .simplemodal-data h2 {
     margin-top: 0;
@@ -327,23 +297,33 @@ td.actions .button {
     padding: 12px;
 }
 
-#session {
-    font-size: 0.95em;
+#session-container {
     color: #ccc;
+    font-size : 15px;
+    font-family : 'Helvetica Neue', 'Helvetica', Arial, FreeSans, sans-serif;
+    background:#000;
     position: absolute;
     top: 0;
     right: 0;
+    margin: 0;
+    padding-bottom: 0.2em;
     z-index: 9999;
-    height: 2em;
-    line-height: 2em;
+    box-shadow : -1px -1px 20px rgba(0,0,0, 0.7);
+    border-bottom-left-radius: 5px;
+    -moz-border-radius-bottomleft : 5px;
+}
+
+div#session {
+   display:inline; 
     margin: 0.2em 1em;
-    padding: 0 0 0 .5em;
 }
 
 #session .username {
     color: white;
     margin-right: 1em;
     text-shadow : 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff, 0 0 20px #ff2d95, 0 0 30px #ff2d95, 0 0 40px #ff2d95, 0 0 50px #ff2d95, 0 0 75px #ff2d95;
+    border-left: 1px solid #666;
+    padding: 0 0 0 1em;
 }
 
 #session ul.actions,
@@ -365,7 +345,7 @@ td.actions .button {
     color: #eee;
 }
 
-#session ul.actions {
+#session ul.actions,span.username {
     border-left: 1px solid #666;
 }
 

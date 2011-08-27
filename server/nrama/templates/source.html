@@ -1,38 +1,15 @@
-<h1>{title} | <span id="nrama_logo">Note-o-rama</span></h1>
-
-<h3>test_doc: {#test_doc}{content}{/test_doc}</h3>
-
-{?my_quotes}
-  <h2>Your notes</h2>
-  {#my_quotes}
-  <p>[{_id}] {content}</p>
-        {?notes}
-            <ul class="_sort-me">
-              {#notes}
-                <li>{#write_note}{/write_note}</li>
-              {/notes}
+<h1>{title}</h1>
+{?quotes}
+    {#quotes}
+        <p class="quote">[<span class="quote-id">{_id}</span>] "<span id="{_id}" class="quote-content">{content}</span>"
+            <ul class="notes _sort-me">
+                {#notes}
+                    <li class="note"><textarea id="{_id}" class="note-content">{content}</textarea></li>
+                {/notes}
             </ul>
-        {/notes}
-    {/my_quotes}
-  {:else}
+        </p>
+    {/quotes}
+    {:else}
   <p>You have no notes on this source.</p>
-{/my_quotes}
-
-
-{?all_other_quotes}
-  <h2>Other's notes</h2>
-  {#all_other_quotes}
-  <p>[{_id}] {content}</p>
-        {?notes}
-            <ul>
-              {#notes}
-                <li>{#write_note}{/write_note}</li>
-              {/notes}
-            </ul>
-        {/notes}
-    {/all_other_quotes}
-  {:else}
-    <h2>No one else has notes</h2>
-{/all_other_quotes}
-
+{/quotes}
 

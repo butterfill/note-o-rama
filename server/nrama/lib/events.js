@@ -8,7 +8,9 @@
 var events = require('kanso/events'),
     session = require('kanso/session'),
     templates = require('kanso/templates'),
-    events = require('kanso/events');
+    events = require('kanso/events'),
+    db = require('kanso/db');
+
 
 
 /**
@@ -41,6 +43,29 @@ events.on('sessionChange', function (userCtx, req) {
 events.on('updateFailure', function (err, info, req, res, doc) {
     alert(err.message || err.toString());
 });
+
+
+// -- custom events for nrama only after here
+
+/**
+ * the specified note should be saved.
+ * Usage:
+ *   events.emit('nrama_save_note', note, on_success, on_error)
+ * 
+ */
+events.on('nrama_save_note', function(note, on_success, on_error) {
+    db.saveDoc(note, {}, function(error, data){
+        if( !error ) {
+            note._rev = data.rev;
+            (on_success || function(){})(data);
+        } else {
+            (on_error || function(){})(error, data);
+        }
+    });
+});
+
+
+
 
 
 

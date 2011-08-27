@@ -11,7 +11,7 @@ module.exports = [
     },
     {
         from : '/source',
-        to : '_list/source/pageId_type_userId'
+        to : '_list/source/pageId_userId'
     },
     {
         from: '/all_users',
