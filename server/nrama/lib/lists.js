@@ -80,6 +80,7 @@ exports.source = function(head, req) {
     var multiple_user_ids = false;
     
     var title = null;
+    var url = null;
     var row = getRow();
     while( row ) {
         var thing = row.value;
@@ -87,6 +88,9 @@ exports.source = function(head, req) {
         // -- set title (only held on quotes, not notes)
         if( !title && thing.page_title ) {
             title = thing.page_title;
+        }
+        if( !url && thing.url ) {
+            url = thing.url;
         }
         
         if( thing.user_id ) {
@@ -114,7 +118,19 @@ exports.source = function(head, req) {
     }
     
     // -- sort quotes by page_order
-    var quote_sorter = function(a,b){ return a.page_order > b.page_order };
+    var array_comparitor = function(a,b){
+        if( a.length == 0 ) {
+            return b.length == 0 ? 0 : 1;
+        }
+        var left = a[0];
+        var right = b[0];
+        if( left == right ) {
+            return array_comparitor(a.slice(1),b.slice(1)); //nb slice does not modify in place
+        }
+        return right - left;
+        
+    };
+    var quote_sorter = function(a,b){ return array_comparitor(b.page_order, a.page_order) };    // <-- NB b,a because we want ascending order
     quotes.sort(quote_sorter);
     
     // -- attach notes to quotes
@@ -204,6 +220,7 @@ exports.source = function(head, req) {
     
     var data = {
         title : (title || 'untitled'),
+        url : url,
         quotes : quotes,
         is_user_page : is_user_page,
         multiple_user_ids : multiple_user_ids,

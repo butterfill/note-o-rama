@@ -10,6 +10,13 @@
     display : inline;
 }
 
+h1 a, a:visited {
+    text-decoration: none;
+    color : black;
+}
+h1 a:hover {
+    border-bottom : 1px dotted rgb(125,125,125);
+}
 
 a:hover .icon {
     color: #666;
