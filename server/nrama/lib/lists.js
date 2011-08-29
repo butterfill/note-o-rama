@@ -12,7 +12,7 @@ exports.all_users = function (head, req) {
     // fetch all the rows
     var users = [];
     var user = getRow();
-    while ( user ) {
+    while( user ) {
         users.push(user);
         user = getRow();
     }
@@ -24,34 +24,52 @@ exports.all_users = function (head, req) {
 
 };
 
+
 /**
- * A list of sources (just urls --- TODO supply author, title)
- * works with view userId_pageId
+ * show sources
+ * works with view userId_source
  *
- * e.g.
- *   http://localhost:5984/nrama/_design/nrama/_list/sources/userId_pageId
- *   http://localhost:5984/nrama/_design/nrama/_list/sources/userId_pageId?group=true&startkey=[%22steve@gmail.com%22]&endkey=[%22steve@gmail.com%22,{}]
  */
 exports.sources = function(head, req) {
-
     start({code: 200, headers: {'Content-Type': 'text/html'}});
+
+    var user_url = null,
+        user_id = null;
+    if( req.query.user_id ) {
+        user_id = req.query.user_id ;
+        user_url = '/user/'+encodeURIComponent(user_id);
+    }
     
     var sources = [];
-    var row = getRow();
-    while( row ) {
-        var source = {};
-        source.user_id = row.key[0];
-        source.page_id = row.key[1];
-        source.nof_items = row.value;
-        sources.push(source);
-        row = getRow();
+    var row,
+        thing;
+    while( row = getRow() ) {
+        if( row.value || row.doc ) {
+            thing = row.value || row.doc;
+            if( thing.type && thing.type == 'source' ) {
+                if( thing.page_id ) {
+                    thing.page_id_enc = encodeURIComponent(thing.page_id);
+                }
+                if( thing.updated ) {
+                    thing.updated_time = new Date(thing.updated).toISOString();   //human-readable
+                }
+                sources.push(thing);
+            }
+        }
     }
-
-    var content = templates.render('sources.html', req, { sources : sources });
+    
+    if( req.client ) {
+        window.req = req;
+    }
+    
+    var content = templates.render('sources.html', req, {
+        user_url : user_url,
+        user_id : user_id,
+        sources : sources
+    });
 
     return {title: 'note-o-rama : my sources', content: content };
 };
-
 
 
 
@@ -76,28 +94,28 @@ exports.source = function(head, req) {
     var find_quote = {};    //indexed by _id
     var notes_for_quotes = {};
     var find_note = {}; //indexed by _id
+
     var user_id = null;
-    var multiple_user_ids = false;
+    if( req.query.user_id ) {
+        user_id = req.query.user_id;    //we are displaying this for a specific user
+    }
     
-    var title = null;
-    var url = null;
+    var title = null,
+        url = null,
+        page_id = null,
+        source = null;
     var row = getRow();
     while( row ) {
-        var thing = row.value;
+        var thing = row.value || row.doc;
         
-        // -- set title (only held on quotes, not notes)
-        if( !title && thing.page_title ) {
-            title = thing.page_title;
-        }
-        if( !url && thing.url ) {
-            url = thing.url;
-        }
+        // -- set title &c (only held on quotes, not notes)
+        if( !title && thing.page_title ) { title = thing.page_title; }
+        if( !url && thing.url ) { url = thing.url; }
+        if( !page_id && thing.page_id ) { page_id = thing.page_id; }
         
-        if( thing.user_id ) {
-            if( user_id && thing.user_id != user_id ) {
-                multiple_user_ids = true;
-            }
-            user_id = thing.user_id;
+        if( thing.type == 'source' ) {
+            source = thing;
+            source.updated_time = new Date(source.updated).toISOString()
         }
         
         if( thing.type == 'quote' ) {
@@ -120,17 +138,42 @@ exports.source = function(head, req) {
     // -- sort quotes by page_order
     var array_comparitor = function(a,b){
         if( a.length == 0 ) {
-            return b.length == 0 ? 0 : 1;
+            return b.length == 0 ? 0 : -1 /*b first*/;
+        }
+        if( b.length == 0 ) {
+            return a.length == 0 ? 0 : 1 /* a first */;
         }
         var left = a[0];
         var right = b[0];
         if( left == right ) {
             return array_comparitor(a.slice(1),b.slice(1)); //nb slice does not modify in place
         }
-        return right - left;
-        
+        return left - right /* +ve = a first */;
     };
-    var quote_sorter = function(a,b){ return array_comparitor(b.page_order, a.page_order) };    // <-- NB b,a because we want ascending order
+    var page_order_comparitor = function(a,b) {
+        // -- arrays
+        if( a instanceof Array && b instanceof Array ) {
+            return array_comparitor(a,b);
+        } else {
+            if( a instanceof Array ) { return 1; } //arrays before everything else
+            if( b instanceof Array ) { return -1; }
+        }
+        // -- numbers
+        var a_num = parseFloat(a),
+            b_num = parseFloat(b),
+            _is_num = function(n){ return !isNaN(n) && isFinite(n); }  //thank you http://stackoverflow.com/questions/18082/validate-numbers-in-javascript-isnumeric
+            a_is_num = _is_num(a_num),
+            b_is_num = _is_num(b_num);
+        if( a_is_num && b_is_num ) {  
+            return a_num - b_num;
+        } else {
+            if( a_num ) { return 1; }
+            if( b_num ) { return -1; }
+        }
+        // -- whatever else
+        return a > b ? 1 : (a < b ? -1 : 0);
+    }
+    var quote_sorter = function(a,b){ return page_order_comparitor(a.page_order, b.page_order) };    // <-- NB b,a because we want ascending order
     quotes.sort(quote_sorter);
     
     // -- attach notes to quotes
@@ -216,15 +259,16 @@ exports.source = function(head, req) {
     
 
     //used in template : returns true if the item in the current context, note or quote, is the user's
-    var is_user_page = req.client && (!multiple_user_ids) && user_id==req.userCtx.name ;
+    var is_user_page = req.client && (user_id) && user_id==req.userCtx.name ;
     
     var data = {
         title : (title || 'untitled'),
         url : url,
+        page_id : page_id,
         quotes : quotes,
         is_user_page : is_user_page,
-        multiple_user_ids : multiple_user_ids,
-        user_id : user_id
+        user_id : user_id,
+        source : source
     };
     
     

@@ -28,21 +28,35 @@ exports.pageId_type_userId = {
     }
 };
 
-// http://localhost:5984/nrama/_design/nrama/_view/userId_pageId?group=true
-exports.userId_pageId= {
+
+//used to display sources for a particular user
+exports.userId_source = {
     map : function(doc) {
-            if( doc.user_id && doc.page_id ) {
-                emit([doc.user_id, doc.page_id]);
+        if( doc.type && doc.type == "source" ) {
+            if( doc.user_id && doc.page_id && doc.updated ) {
+                emit([doc.user_id, doc.updated, doc.page_id], null);
             }
-        },
-    reduce : "_count"
-};
+        }
+    }
+}
+
+//used to dispaly all sources
+exports.source = {
+    map : function(doc) {
+        if( doc.type && doc.type == "source" ) {
+            if( doc.updated && doc.page_id ) {
+                emit([doc.updated, doc.page_id], null);
+            }
+        }
+    }
+}
+
 
 //http://localhost:5984/nrama/_design/nrama/_view/pageId_userId?key=["http://en.wikipedia.org/wiki/Komodo_dragons?h=i","steve@gmail.com"]
 exports.pageId_userId= {
     map : function(doc) {
             if( doc.user_id && doc.page_id ) {
-                emit([doc.page_id, doc.user_id],doc);
+                emit([doc.page_id, doc.user_id], null);
             }
         }
 };

@@ -1,7 +1,101 @@
 /**
- * taken from kanso admin app, needs re-working.
+ * modified from kanso admin app, needs more work.
  * license is license for kanso app.
+ * TODO include proper text layout style
  */
+
+/**
+ * the logo & login bit, top right
+ */
+
+#session-container {
+    color: #ccc;
+    font-size : 15px;
+    font-family : 'Helvetica Neue', 'Helvetica', Arial, FreeSans, sans-serif;
+    background:#000;
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: 0;
+    padding-bottom: 0.2em;
+    z-index: 9999;
+    box-shadow : -1px -1px 10px rgba(0,0,0, 0.5);
+    border-bottom-left-radius: 5px;
+    -moz-border-radius-bottomleft : 5px;
+}
+
+div#session {
+   display:inline; 
+    margin: 0.2em 1em;
+}
+
+#session .username {
+    color: white;
+    margin-right: 1em;
+    text-shadow : 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff, 0 0 20px #ff2d95, 0 0 30px #ff2d95, 0 0 40px #ff2d95, 0 0 50px #ff2d95, 0 0 75px #ff2d95;
+    border-left: 1px solid #666;
+    padding: 0 0 0 1em;
+}
+
+#session ul.actions,
+#session ul.actions li {
+    list-style-type: none;
+    display: inline;
+    height: 2em;
+    line-height: 2em;
+    margin: 0;
+    padding: 0;
+}
+
+#session ul.actions li a {
+    color: #999;
+    text-decoration: none;
+}
+
+#session ul.actions li a:hover {
+    color: #eee;
+}
+
+#session ul.actions,span.username {
+    border-left: 1px solid #666;
+}
+
+#session ul.actions li {
+    padding: 0 0 0 1em;
+}
+
+.loggedout .logout { display: none !important; }
+.loggedout .login { display: inline !important; }
+.loggedout .signup { display: inline !important; }
+.loggedin .logout { display: inline !important; }
+.loggedin .login { display: none !important; }
+.loggedin .signup { display: none !important; }
+
+#login_form .actions,
+#signup_form .actions {
+    text-align: right;
+}
+
+#login_form label,
+#signup_form label {
+    display: inline-block;
+    width: 90px;
+}
+
+#login_form .errors,
+#signup_form .errors {
+    font-size: 0.8em;
+    color: red;
+    padding-left: 90px;
+}
+
+#login_form .general_errors,
+#signup_form .general_errors {
+    font-size: 0.8em;
+    color: red;
+    font-weight: bold;
+}
+
 
 #nrama_logo {
     color : black;
@@ -9,6 +103,11 @@
     text-shadow : 0 0 2px #fff, 0 0 3px #fff, 0 0 5px #fff, 0 0 7px #ff2d95, 0 0 10px #ff2d95, 0 0 14px #ff2d95, 0 0 17px #ff2d95, 0 0 27px #ff2d95;
     display : inline;
 }
+
+
+/**
+ * for the content
+ */
 
 h1 a, a:visited {
     text-decoration: none;
@@ -278,6 +377,7 @@ td.actions .button {
     vertical-align: top;
 }
 
+
 #flashmessages {
     list-style-type: none;
     padding: 0;
@@ -298,6 +398,11 @@ td.actions .button {
     background-color: #dfd;
 }
 
+
+/**
+ * simplemodal stuff
+ */
+
 #simplemodal-overlay {
     background-color: #000;
 }
@@ -309,93 +414,9 @@ td.actions .button {
     padding: 12px;
 }
 
-#session-container {
-    color: #ccc;
-    font-size : 15px;
-    font-family : 'Helvetica Neue', 'Helvetica', Arial, FreeSans, sans-serif;
-    background:#000;
-    position: absolute;
-    top: 0;
-    right: 0;
-    margin: 0;
-    padding-bottom: 0.2em;
-    z-index: 9999;
-    box-shadow : -1px -1px 20px rgba(0,0,0, 0.7);
-    border-bottom-left-radius: 5px;
-    -moz-border-radius-bottomleft : 5px;
-}
-
-div#session {
-   display:inline; 
-    margin: 0.2em 1em;
-}
-
-#session .username {
-    color: white;
-    margin-right: 1em;
-    text-shadow : 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff, 0 0 20px #ff2d95, 0 0 30px #ff2d95, 0 0 40px #ff2d95, 0 0 50px #ff2d95, 0 0 75px #ff2d95;
-    border-left: 1px solid #666;
-    padding: 0 0 0 1em;
-}
-
-#session ul.actions,
-#session ul.actions li {
-    list-style-type: none;
-    display: inline;
-    height: 2em;
-    line-height: 2em;
-    margin: 0;
-    padding: 0;
-}
-
-#session ul.actions li a {
-    color: #999;
-    text-decoration: none;
-}
-
-#session ul.actions li a:hover {
-    color: #eee;
-}
-
-#session ul.actions,span.username {
-    border-left: 1px solid #666;
-}
-
-#session ul.actions li {
-    padding: 0 0 0 1em;
-}
-
-.loggedout .logout { display: none !important; }
-.loggedout .login { display: inline !important; }
-.loggedout .signup { display: inline !important; }
-.loggedin .logout { display: inline !important; }
-.loggedin .login { display: none !important; }
-.loggedin .signup { display: none !important; }
-
-#login_form .actions,
-#signup_form .actions {
-    text-align: right;
-}
-
-#login_form label,
-#signup_form label {
-    display: inline-block;
-    width: 90px;
-}
-
-#login_form .errors,
-#signup_form .errors {
-    font-size: 0.8em;
-    color: red;
-    padding-left: 90px;
-}
-
-#login_form .general_errors,
-#signup_form .general_errors {
-    font-size: 0.8em;
-    color: red;
-    font-weight: bold;
-}
+/**
+ * can go?
+ */
 
 .spinner {
     display: inline;

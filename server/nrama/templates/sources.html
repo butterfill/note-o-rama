@@ -1,12 +1,39 @@
-<h1>Sources | Note-o-rama</h1>
+{?user_id}
+    <h1>{user_id}'s Sources</h1>
+{:else}
+    <h1>Everyone's sources</h1>
+{/user_id}
 
 {?sources}
-  <ul>
-  {#sources}
-    <!-- <li><a href="{baseURL}/{id}">{value}</a></li> -->
-    <li>{page_id} ({nof_items})</li>
-  {/sources}
+    <ul>
+        {#sources page_user_id=user_id}
+            <li>
+                {?page_user_id}
+                {:else}
+                    [<a href="{baseURL}/user/{user_id}" class="to_source">{user_id}</a>]
+                {/page_user_id}
+                <a href="{baseURL}{user_url}/source/{page_id_enc}">{page_title}</a> [{_id}]
+                <div class="updated">Updated <abbr class="updated_time _timeago" title="{updated_time}">{updated_time}</abbr>.</div>
+                <div class="page_id"><abbr class="page_id">{page_id}</abbr></div>
+            </li>
+        {/sources}
     </ul>
-  {:else}
-  <p>No sources</p>
+{:else}
+    {?user_id}
+        <p>{user_id} has no sources yet.</p>
+    {/user_id}
 {/sources}
+
+{! menu !}
+<ul>
+    {?user_id}
+        <li>
+            See <a href = "{baseURL}/sources">everyone's sources</a>
+        </li>
+    {:else}
+        {?userCtx.name}
+            <li>See <a href="{baseURL}/user/{userCtx.name}">your sources</a>.</li>
+        {/userCtx.name}
+    {/user_id}
+</ul>
+

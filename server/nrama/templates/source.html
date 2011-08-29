@@ -1,6 +1,24 @@
-<h1>
-    <a href="{url}" target="_blank">{title}</a>
-</h1>
+{?source}
+    <h1>
+        <a href="{url}" target="_blank">{source.page_title}</a>
+    </h1>
+    {^user_id}
+        <p>Updated by {source.user_id} <abbr class="updated_time _timeago" title="{source.updated_time}">{source.updated_time}</abbr>.
+    {/user_id}
+{:else}
+    <h1>
+        <a href="{url}" target="_blank">{title}</a>
+    </h1>
+{/source}
+
+{?user_id}
+    <h2>{user_id}'s notes</h2>
+    <p>Updated <abbr class="updated_time _timeago" title="{source.updated_time}">{source.updated_time}</abbr>.
+{:else}
+    <h2>Everyone's notes</h2>
+{/user_id}
+
+
 {?quotes}
     {#quotes}
         <div class="quote" id="{_id}" >
@@ -27,13 +45,39 @@
             </ul>
         </div>
     {/quotes}
+{:else}
+    {?user_id}
+        <p>{user_id} has no notes on this source.</p>
     {:else}
-  <p>You have no notes on this source.</p>
+        <p>There are no notes on this source.</p>
+    {/user_id}
 {/quotes}
 
-    <script>
-        if( typeof($)!='undefined' ) {
-            $('._sort-me').sortlist();
-            $('textarea.note-content').autogrow();
-        }
-    </script>
+{! menu !}
+<ul>
+    {?user_id}
+        <li>
+            See <a href="{baseURL}/source/{page_id|uc}">everyone's notes on this source</a>.
+        </li>
+    {:else}
+        {?userCtx.name}
+        <li>
+            See (and edit) <a href="{baseURL}/user/{userCtx.name}/source/{page_id|uc}"> only your notes on this source</a>
+        </li>
+        {/userCtx.name}
+    {/user_id}
+    {?userCtx.name}
+        <li>See <a href="{baseURL}/user/{userCtx.name}">your sources</a>.</li>
+    {/userCtx.name}
+    <li>
+        See <a href = "{baseURL}/sources">everyone's sources</a>
+    </li>
+</ul>
+
+
+<script>
+    if( typeof($)!='undefined' ) {
+        $('._sort-me').sortlist();
+        $('textarea.note-content').autogrow();
+    }
+</script>

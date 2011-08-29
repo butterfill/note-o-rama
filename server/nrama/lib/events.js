@@ -45,30 +45,21 @@ events.on('updateFailure', function (err, info, req, res, doc) {
 });
 
 
-// -- custom events for nrama only after here
+// --- nrama only after here
 
 /**
- * the specified note should be saved.
- * Usage:
- *   events.emit('nrama_save_note', note, on_success, on_error)
- * 
+ * afterResponse is not documented, but I think it fires after the
+ * document has been rendered by the client (and not after rendering by the server)
  */
-events.on('nrama_save_note', function(note, on_success, on_error) {
-    db.saveDoc(note, {}, function(error, data){
-        if( !error ) {
-            note._rev = data.rev;
-            (on_success || function(){})(data);
-        } else {
-            (on_error || function(){})(error, data);
-        }
-    });
+events.on('afterResponse', function(err, info, req, res, doc) {
+		if( typeof($)!='undefined' ) {
+      $('._timeago').timeago();
+		}
+    
 });
 
 
-
-
-
-
+// --- taken from the kanso admin app
 var bindSessionControls = function () {
     $('#session .logout a').click(function (ev) {
         ev.preventDefault();
