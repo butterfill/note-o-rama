@@ -28,25 +28,38 @@ exports.all_users = function (head, req) {
 
 /**
  * show sources
+ *
+ * to show all sources for single user (or all users),
  * works with view userId_source
  *
+ * to show sources for an author (either for single user or all users)
+ * works with view author_userId
+ * 
  */
 exports.sources = function(head, req) {
     start({code: 200, headers: {'Content-Type': 'text/html'}});
 
-    var user_url = null,
-        user_id = null;
+    var user_url,
+        user_id,
+        author,
+        author_url;
     if( req.query.user_id ) {
         user_id = req.query.user_id ;
         user_url = '/user/'+encodeURIComponent(user_id);
     }
+    if( req.query.author ) {
+      author = req.query.author;
+      author_url = '/author/'+encodeURIComponent(author);
+    }
+    if( author && user_id ) {
+      user_author_url = user_url + '/' + author_url;
+    }
     
     var sources = [];
-    var row,
-        thing;
+    var row;
     while( row = getRow() ) {
         if( row.value || row.doc ) {
-            thing = row.value || row.doc;
+            var thing = row.value || row.doc;
             if( thing.type && thing.type == 'source' ) {
                 if( thing.page_id ) {
                     thing.page_id_enc = encodeURIComponent(thing.page_id);
@@ -59,17 +72,20 @@ exports.sources = function(head, req) {
         }
     }
     
+    //TODO remove (for testing only)
     if( req.client ) {
-        window.req = req;
+      window.req = req
     }
     
     var content = templates.render('sources.html', req, {
         user_url : user_url,
         user_id : user_id,
+        author : author,
+        author_url : author_url,
         sources : sources
     });
 
-    return {title: 'note-o-rama : my sources', content: content };
+    return {title: 'note-o-rama : sources', content: content };
 };
 
 

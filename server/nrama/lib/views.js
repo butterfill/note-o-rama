@@ -34,7 +34,7 @@ exports.userId_source = {
     map : function(doc) {
         if( doc.type && doc.type == "source" ) {
             if( doc.user_id && doc.page_id && doc.updated ) {
-                emit([doc.user_id, doc.updated, doc.page_id], null);
+                emit([doc.user_id, doc.updated], null);
             }
         }
     }
@@ -60,3 +60,19 @@ exports.pageId_userId= {
             }
         }
 };
+
+// authors!!!
+exports.author_userId = {
+  map : function(doc) {
+    if( doc.AUTHOR && doc.user_id ) {
+      var year = doc.YEAR || null;    //order is [year_unknown, 1965, 1990, 2000],  (typically reversed)
+      for( idx in doc.AUTHOR ) {
+        emit([doc.AUTHOR[idx], doc.user_id, year], null)
+      }
+    }
+  }
+}
+
+exports.tag_userId = {
+  
+}

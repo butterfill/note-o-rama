@@ -3,13 +3,13 @@
  */
 
 var utils = require('./utils'),
-    _ = require('kanso/underscore')._;
+    _ = require('./underscore')._;  //nb NOT the version shipped with kanso 0.0.7 -- that lacks _.union
 
 
 
 /**
  * This will only accept json data (no submission)
- *  shortcut it: {
+ *  to remove kanso wrapping around it, modify the _design entry to: {
    "source": "function(doc, req){var fn = require(\"lib/app\")[\"updates\"][\"source\"];return fn(doc,req);}"
 }
  */
@@ -20,7 +20,7 @@ exports.source = function (doc, req) {
         for( var i in req.form ) { form_str+=i+' : '+ req.form[i]+ '\n'; };
         return [null, {
             code: 400,  //doesn't currently work, see https://issues.apache.org/jira/browse/COUCHDB-648
-            headers: {"Content-Type" : "application/json"},
+            headers: {"Content-Type" : "application/json"}, //doesn't currently work
             body: '{"error":"'+msg+'","req_form":"'+form_str+'","req_body":"'+req.body+'"}'
         }];
     };
@@ -41,23 +41,22 @@ exports.source = function (doc, req) {
             created : new Date().getTime(),
             updated : new Date().getTime()
         });
-        return [new_source, {
-            code: 201,  //doesn't currently work, see https://issues.apache.org/jira/browse/COUCHDB-648
-            headers: {"Content-Type" : "application/json"},
-            body: '{"created":"created"}'
-        }];
+        return [new_source, 'created'];
     } else {
-        if( req.form ) {
-            doc = _.extend(doc,req.form);
-        } 
-        doc = _.extend(doc, JSON.parse(req.body));
+        additions = JSON.parse(req.body);
+        //-- append tags 
+        var new_tags = _.union(doc.tags||[], additions.tags||[]);
+        doc = _.extend(doc, additions, {tags:new_tags});
         
         doc.updated = new Date().getTime();
-        return [doc,  {
+        return [doc,  'updated '+new_tags 
+          /*{
             code: 200,  //doesn't currently work, see https://issues.apache.org/jira/browse/COUCHDB-648
-            headers: {"Content-Type" : "application/json"},
-            body: '{"updated":"updated"}'
-        }];
+            //headers: {"Content-Type" : "application/json"}, //doesn't seem to work either
+            headers: {"Content-Type" : 'text/html'},        //this is what you get 
+            body: 'updated'
+          }*/
+        ];
     }
 };
 

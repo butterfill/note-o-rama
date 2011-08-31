@@ -129,21 +129,6 @@ _nrama_init=function _nrama_init($){
     }
     
     /**
-     * nrama.page_id is a value s.t. two page instances have the same page_id exactly
-     *   when we want to load the same notes & quotes onto those pages.  This is really
-     *   hard to compute (e.g. DOI helps but if different users see an article with
-     *   different formatting, should we load the same notes & quotes?  Probably.)
-     */
-    nrama.page_id = document.location.href; //?in future this might be doi or similar
-    //this is the node within which notes and quotes are possible and relative to which
-    //their locations are defined
-    //nrama.root_node = $('#readOverlay')[0]; //will eventually be configured per-site
-    //nrama.root_note must be defined after document loaded!
-    jQuery(document).ready(function($){
-        nrama.root_node = document.body;
-    });
-
-    /**
      * create RPC stuff
      */
     var stubs = {
@@ -375,6 +360,7 @@ _nrama_init=function _nrama_init($){
             var defaults = {
                 type : 'source',
                 TITLE : document.title,
+                tags : nrama.settings.tags,     //the server's update will append, not remove
                 url : document.location.href,
                 page_id : nrama.page_id,
                 user_id : nrama.settings.user_id
@@ -437,7 +423,7 @@ _nrama_init=function _nrama_init($){
                 _id : nrama.uuid(),  
                 type : 'quote',
                 content : $.trim( range.toString() ),
-                tags : nrama.settings.tags, //string: space-separated list of tags this quote is tagged with
+                tags : nrama.settings.tags, 
                 background_color : nrama.settings.background_color,
                 //the xpointer to the quote (well, it isn't actually an xpointer but  any serialized representation of the raneg)
                 xptr : nrama.serializer.serialize(range),
@@ -639,6 +625,7 @@ _nrama_init=function _nrama_init($){
                 _id : nrama.uuid(),  
                 type : 'note',
                 content : nrama.settings.note_default_text,
+                tags : nrama.settings.tags, 
                 background_color : nrama.settings.note_background_color,
                 width : nrama.settings.note_width,
                 url : document.location.href,
@@ -886,15 +873,33 @@ _nrama_init=function _nrama_init($){
      *  - configure events (select to create quote, etc)
      */
     jQuery(document).ready(function($){
-        $.log("nrama2 starting up");
+        /**
+         * nrama.page_id is a value s.t. two page instances have the same page_id exactly
+         *   when we want to load the same notes & quotes onto those pages.  This is really
+         *   hard to compute (e.g. DOI helps but if different users see an article with
+         *   different formatting, should we load the same notes & quotes?  Probably.)
+         * In future this might be doi or similar
+         */
+        nrama.page_id = window.location.protocol+"//"+window.location.host+window.location.pathname;  //the url with no ?query or #anchor details
+        /**
+         * this is the node within which notes and quotes are possible and
+         * relative to which their locations are defined.
+         * Might eventually be configured per-site
+         * NB nrama.root_note must be defined after document loaded!
+         */
+        //nrama.root_node = $('#readOverlay')[0]; 
+        nrama.root_node = document.body;
+
         rangy.init();
-        $.log('loading notes and quotes ...');
+
+        $.log('nrama: loading notes and quotes ...');
         nrama.quotes.load( nrama.default_callback );
         nrama.notes.load( nrama.default_callback );
+
         
         // --- configure events ---
         
-        // quote : highlight creates a quote
+        // highlighting text creates a quote
         $(document).bind("mouseup", function(e){
             if( e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) {
                 //any modifier key cancels quote creation
@@ -973,7 +978,7 @@ _nrama_init=function _nrama_init($){
             nrama.quotes.flash(note.quote_id);
         });
         
-        //tabbing out of a note doesn't move to next note (because weird)
+        //tabbing out of a note doesn't move to next note (because weird).
         //thank you http://stackoverflow.com/questions/1314450/jquery-how-to-capture-the-tab-keypress-within-a-textbox
         $('._nrama-note').live('keydown',function(e){
             if( e.which == 9 ) {

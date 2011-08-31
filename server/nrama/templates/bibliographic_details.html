@@ -1,0 +1,26 @@
+{?AUTHOR}
+    <span class="authors">
+        {#AUTHOR}<a href="{baseURL}{user_url}/author/{.|uc}"
+                    class="author author_{@idx}{.}{/idx}"
+                >{.}</a>{@sep} and {/sep}{/AUTHOR}.
+    </span>
+    <br />
+{/AUTHOR}
+{?JOURNAL}
+    <span class="journal">{JOURNAL}</span>
+    {VOLUME}({NUMBER}).
+    {?PAGES}
+        pp. <span class="PAGES">{PAGES}</span>.
+    {/PAGES}
+{/JOURNAL}
+{?BOOKTITLE}
+    In <span class="booktitle">{BOOKTITLE}</span>
+    {?EDITOR}
+        (eds.) <span class="editor">{EDITOR}</span>.
+    {/EDITOR}
+    <span class="publisher">{PUBLISHER}</span>:
+    <span class="address">{ADDRESS}</span>.
+    {?PAGES}
+        pp. <span class="PAGES">{PAGES}</span>.
+    {/PAGES}
+{/BOOKTITLE}

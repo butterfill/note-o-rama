@@ -40,7 +40,7 @@ div#session {
 }
 
 #session .username {
-    color: white;
+    color: #FFF;
     margin-right: 1em;
     text-shadow : 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff, 0 0 20px #ff2d95, 0 0 30px #ff2d95, 0 0 40px #ff2d95, 0 0 50px #ff2d95, 0 0 75px #ff2d95;
     border-left: 1px solid #666;
@@ -63,7 +63,7 @@ div#session {
 }
 
 #session ul.actions li a:hover {
-    color: #eee;
+    color: #FFF;
 }
 
 #session ul.actions,span.username {
@@ -108,7 +108,7 @@ div#session {
 
 
 #nrama_logo {
-    color : black;
+    color : #000;
     padding-left : 1em;
     text-shadow : 0 0 2px #fff, 0 0 3px #fff, 0 0 5px #fff, 0 0 7px #ff2d95, 0 0 10px #ff2d95, 0 0 14px #ff2d95, 0 0 17px #ff2d95, 0 0 27px #ff2d95;
     display : inline;
@@ -119,6 +119,23 @@ div#session {
  * for the content
  */
 
+body {
+    font-size: 14px;
+    font-family: Palatino, 'Palatino Linotype', Georgia, Times, 'Times New Roman', serif;
+    color: #000;
+    margin: 0;
+    max-width : 800px;
+}
+
+#content {
+    margin-left: 25px;
+    margin-right : 25px;
+}
+
+div.spacer {
+    padding : 0.5em;
+}
+
 h1 a, a:visited {
     text-decoration: none;
     color : black;
@@ -127,22 +144,31 @@ h1 a:hover {
     border-bottom : 1px dotted rgb(125,125,125);
 }
 
+h1.title-line {
+    padding-bottom : 0;
+    margin-bottom : 0;
+    font-size : 24px;
+    font-weight:bold;
+}
+
+h2.user-line {
+    padding-bottom : 0;
+    margin-bottom : 0;
+    font-size : 18px;
+    font-weight:bold;
+}
+
+div.quotes {
+    margin-top : 2em;
+}
+
 a:hover .icon {
     color: #666;
     text-decoration: none;
 }
 
-body {
-    font-size: 14px;
-    font-family: Palatino,serif;
-    color: #292626;
-    margin: 0;
-    max-width : 800px;
-}
-
-#content {
-    margin-left: 25px;
-    margin-right : 25px;
+.title-line {
+    font-size : 18px;
 }
 
 .note-content {
@@ -153,14 +179,26 @@ ul.notes {
     -webkit-padding-start : 0px;
     padding-left : 2em;
 }
-
+ul.notes._not_user_page {
+    margin-bottom : 2em;
+}
+ul.notes._not_user_page li {
+    margin-bottom : 1em;
+}
+ul.sources {
+    -webkit-padding-start : 0px;
+    padding-left : 0em;
+}
 li.note, li.add-a-note {
     display:block;
-    
+}
+li.source {
+    display:block;
+    padding-bottom : 2em;
 }
 textarea.note-content {
     font-size: 14px;
-    font-family: Palatino,serif;
+    font-family: Palatino, 'Palatino Linotype', Georgia, Times, 'Times New Roman', serif;
     border : none;
     resize:none;
     width:100%;
@@ -348,7 +386,7 @@ p.description {
     margin: 0;
     padding: 0;
     font-size: 11.2px;
-    font-family: 'Lucida Grande', 'Lucida Sans Unicode', verdana, geneva, sans-serif;
+    font-family : 'Helvetica Neue', 'Helvetica', Arial, FreeSans, sans-serif;
 }
 
 
