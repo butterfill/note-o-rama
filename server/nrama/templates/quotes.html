@@ -1,0 +1,77 @@
+{?user_id}
+    <h2 class='user-line'>{user_id}'s notes</h2>
+    <div class='updated-line'>Updated <abbr class="updated_time _timeago" title="{source.updated_time}">{source.updated_time}</abbr>.</div>
+{:else}
+    <h2 class='user-line'>Everyone's notes</h2>
+    {?source}
+        <div class='updated-line'>Updated by {source.user_id} <abbr class="updated_time _timeago" title="{source.updated_time}">{source.updated_time}</abbr>.</div>
+    {/source}
+{/user_id}
+
+{#sources}    
+    <h1 class='title-line'>
+        source: <a href="{url}" target="_blank" class="title">{TITLE}</a>
+        {?YEAR}(<span class="year">{YEAR}</span>){/YEAR}
+    </h1>
+    <div class="citation">{>"bibliographic_details.html"/}</div>
+    
+    <div class='quotes'>
+        {#quotes}
+            <div class="quote" id="{_id}" >
+                <div class="quote-line">
+                    "<span class="quote-content">{content}</span>"
+                    {?is_user_page}
+                        <span class="add-a-note">[+]</span>
+                    {/is_user_page}
+                </div>
+                {^is_user_page}
+                    [<span class='quote-user_id'>{user_id}</span>]
+                {/is_user_page}
+                [{page_order}]
+                <ul class="notes _sort-me {^is_user_page}_not_user_page{/is_user_page}">
+                    {#notes}
+                        <li class="note">
+                            {! display textarea if user can edit on this page, otherwise just the text !}
+                            {?is_user_page}
+                                <textarea id="{_id}" class="note-content" rows="1">{content}</textarea>
+                            {:else}
+                                [<span class='quote-user_id'>{user_id}</span>] <span class="note-content">{content}</span>
+                            {/is_user_page}
+                        </li>
+                    {/notes}
+                </ul>
+            </div>
+        {/quotes}
+    </div>
+    
+{/sources}
+
+
+<div class='navigation' >
+    <ul>
+        {?user_id}
+            <li>
+                See <a href="{baseURL}/source/{page_id|uc}">everyone's notes on this source</a>.
+            </li>
+        {:else}
+            {?userCtx.name}
+            <li>
+                See (and edit) <a href="{baseURL}/user/{userCtx.name}/source/{page_id|uc}"> only your notes on this source</a>
+            </li>
+            {/userCtx.name}
+        {/user_id}
+        {?userCtx.name}
+            <li>See <a href="{baseURL}/user/{userCtx.name}">your sources</a>.</li>
+        {/userCtx.name}
+        <li>
+            See <a href = "{baseURL}/sources">everyone's sources</a>
+        </li>
+    </ul>
+</div>
+
+<script>
+    if( typeof($)!='undefined' ) {
+        $('._sort-me').sortlist();
+        $('textarea.note-content').autogrow();
+    }
+</script>

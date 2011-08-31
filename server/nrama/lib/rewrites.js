@@ -49,24 +49,42 @@ module.exports = [
         }
     },
     {
-        from : '/source/:url',                  //everyone's notes on a source
+        from : '/source/:page_id',                  //everyone's notes on a source
         to : '_list/source/pageId_userId',
         query : {
-            startkey : [":url"],
-            endkey : [":url",{}],
+            startkey : [":page_id"],
+            endkey : [":page_id",{}],
             include_docs : 'true'
         }
     },
     {
-        from : '/user/:user_id/source/:url',    //the user's notes on a source
+        from : '/user/:user_id/source/:page_id',    //the user's notes on a source
         to : '_list/source/pageId_userId',
         query : {
-            key : [":url",":user_id"],
+            key : [":page_id",":user_id"],
             include_docs : 'true'
         }
     },
     {
-        from: '/all_users',
+        from : '/tag/:tag',                   //show everything marked with a particular tag
+        to : '_list/quotes/tag_userId',
+        query : {
+          startkey : [":tag"],
+          endkey : [":tag", {}],
+            include_docs : 'true'
+        }
+    },
+    {
+        from : '/user/:user/tag/:tag',                 //show everything of a users' marked with a particular tag
+        to : '_list/quotes/tag_userId',
+        query : {
+          startkey : [":tag",":user",],
+          endkey : [":tag", ":user", {}],
+          include_docs : 'true'
+        }
+    },
+    {
+        from: '/all_users',                   //intended as an entry point for search engines : TODO needs updating!
         to: '_list/all_users/all_user_ids',
         method : 'GET',
         query : { group : 'true' } //for some reason it must be 'true', not true.

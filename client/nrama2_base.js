@@ -207,7 +207,7 @@ _nrama_init=function _nrama_init($){
          * NB: If successful, will update a _rev property on thing and insert _id
          * NB: if options.clone_on_conflict, @param thing will have its properties updated  incl. new _id
          */
-        save : function save(thing, options/*optional*/, callback ) {
+        save : function save(thing, options/*optional*/, callback/*required*/ ) {
             if( !callback || typeof(options) == 'function' ) {
                 callback = options;
                 options = {}
@@ -227,13 +227,13 @@ _nrama_init=function _nrama_init($){
                             return;
                         }
                     }
-                    $.log('nrama.persist.save: unhanlded error')
+                    nrama._debug({msg:'nrama.persist.save: error',error:error});
                     callback(error, data);
                     return;
                 }
                 thing._rev = data.rev;
                 thing._id = data.id;
-                callback();
+                callback(error, thing);
             });
         },
         
@@ -370,6 +370,21 @@ _nrama_init=function _nrama_init($){
             nrama.persist.update(source, callback);
         },
         
+        _updated_once : false,
+        /**
+         * does nrama.sources.update just once, callback is imediate if already done
+         */
+        update_once : function(callback) {
+            if( nrama.sources._updated_once ) {
+                callback(null, "already done");
+                return;
+            }
+            nrama.sources.update(function(error,data){
+                nrama.sources._updated_once = !error;
+                callback(error, data);
+            });
+        },
+        
         /**
          * given a string, attempts to parse it as bibtex and update the source
          * with the results
@@ -436,6 +451,18 @@ _nrama_init=function _nrama_init($){
                 created : new Date().getTime(),
                 user_id : nrama.settings.user_id
             }
+        },
+        
+        save : function(quote, options /*optional*/, callback) {
+            //update the source before saving any quotes
+            nrama.sources.update_once(function(error, data) {
+                if( error ) {
+                    $.log('error in nrama.quotes.save is due to call to nrama.sources.update_once.')
+                    callback(error, data);
+                    return;
+                }
+                nrama.persist.save(quote, options, callback);
+            });
         },
         
         /**
@@ -637,6 +664,18 @@ _nrama_init=function _nrama_init($){
             return new_note;
         },
         
+        save : function(note, options/*optional*/, callback) {
+            //update the source before saving any quotes
+            nrama.sources.update_once(function(error, data) {
+                if( error ) {
+                    $.log('error in nrama.notes.save is due to call to nrama.sources.update_once.')
+                    callback(error, data);
+                    return;
+                }
+                nrama.persist.save(note, options, callback);
+            });
+        },
+        
         /**
          * dispaly a note on the page -- i.e. create and style the HTML and add it
          * to the approriate part of the document (the #_nrama_notes).
@@ -767,7 +806,7 @@ _nrama_init=function _nrama_init($){
             };
             var new_note = $.extend(true, {}, note, updates);   
             
-            nrama.persist.save(new_note, {clone_on_conflict:true}, function(error,data){
+            nrama.notes.save(new_note, {clone_on_conflict:true}, function(error,data){
                 if( error ) {
                     $note.css({backgroundColor:nrama.settings.persist_failed_color});
                     _finally($textarea, false);
@@ -798,7 +837,7 @@ _nrama_init=function _nrama_init($){
                 doc_height : $(document).height(),
                 doc_width : $(document).width()
             };
-            nrama.persist.save(note, {clone_on_conflict:false}, function(error, data){
+            nrama.notes.save(note, {clone_on_conflict:false}, function(error, data){
                 if( !error ) {
                     note = $.extend(true, note, updates);   
                 }
@@ -920,7 +959,7 @@ _nrama_init=function _nrama_init($){
             }
             var quote = nrama.quotes.create(range);
             if( quote.content != '' ) {
-                nrama.persist.save(quote, function(error, data){
+                nrama.quotes.save(quote, function(error, data){
                     //(todo -- some indicate that it has failed?
                     if( !error ) {
                         nrama.quotes.display(quote);   //display the quote only after it has been saved

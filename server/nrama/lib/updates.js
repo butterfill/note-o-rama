@@ -49,7 +49,7 @@ exports.source = function (doc, req) {
         doc = _.extend(doc, additions, {tags:new_tags});
         
         doc.updated = new Date().getTime();
-        return [doc,  'updated '+new_tags 
+        return [doc,  'updated'
           /*{
             code: 200,  //doesn't currently work, see https://issues.apache.org/jira/browse/COUCHDB-648
             //headers: {"Content-Type" : "application/json"}, //doesn't seem to work either

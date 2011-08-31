@@ -4,7 +4,7 @@
 var templates = require('kanso/templates'),
     events = require('kanso/events'),
     db = require('kanso/db'),
-    _ = require('kanso/underscore')._;
+    _ = require('./underscore')._;      //nb this is more uptodate than that incl. with kanso 0.0.7
 
 exports.all_users = function (head, req) {
 
@@ -292,12 +292,100 @@ exports.source = function(head, req) {
     
     
     var content = templates.render('source.html', req, data);
-    
-    // communicate with window so that can do stuff after HTML rendered
-    // this is probably a sign I should have built this with widgets.  Oh well.
-    if( req.client ) {
-        window._is_client_rendered=true;
-    } 
 
     return {title: 'note-o-rama : '+title, content: content };
+}
+
+
+
+
+
+/**
+ * notes & quotes from one or more sources
+ * works with views: tag_userId, pageId_userId
+ *
+ * e.g.(single user)
+ *   http://localhost:5984/nrama/_design/nrama/_rewrite/source?key=["http://en.wikipedia.org/wiki/Komodo_dragons?h=i","steve@gmail.com"]
+ * or using the rewrites for /user/user_id/source/page_id:
+ *  http://localhost:5984/nrama/_design/nrama/_rewrite/user/steve@gmail.com/source/http%3A%2F%2Fstackoverflow.com%2Fquestions%2F332872%2Fhow-to-encode-a-url-in-javascript
+ * e.g. (all users)
+ *  http://localhost:5984/nrama/_design/nrama/_rewrite/source?startkey=[%22http://en.wikipedia.org/wiki/Komodo_dragons?h=i%22,%22steve@gmail.com%22]&endkey=[%22http://en.wikipedia.org/wiki/Komodo_dragons?h=i%22,{}]
+ *
+ * NB use encodeURIComponent to put a page_idinto a url!
+ *
+ */
+exports.quotes = function(head, req) {
+    start({code: 200, headers: {'Content-Type': 'text/html'}});
+
+    var find_source = {};   //indexed by page_id, the first source we find gets priority
+    var quotes_for_source = {}; //indexed by page_id
+    var find_quote = {};    //indexed by _id
+    var notes_for_quotes = {};
+    var find_note = {}; //indexed by _id
+
+    var user_id = user_id = req.query.user_id;    //null if we are not displaying this for a specific user
+    var tag = req.query.tag;    //null if we are not displaying a specific tag
+    
+    var row = getRow();
+    while( row ) {
+        var thing = row.value || row.doc;
+        
+        if( thing.type == 'source' ) {
+            var source = thing;
+            if( !find_source[source.page_id] ) {
+                find_source[source.page_id] = source;
+                source.updated_time = new Date(source.updated).toISOString()
+            }
+        }
+        if( thing.type == 'quote' ) {
+            var quote = thing;
+            find_quote[quote._id] = quote;
+            quotes_for_source[quote.page_id] = _(quotes_for_source[quote.page_id]).union([quote]);
+        }
+        if( thing.type == 'note' ) {
+            var note = thing;
+            find_note[note._id] = note;
+            if( !notes_for_quotes[note.quote_id]  ) {
+                notes_for_quotes[note.quote_id] = [];
+            }
+            notes_for_quotes[note.quote_id].push(note);
+        }
+        
+        row = getRow();
+    }
+
+    
+    // -- attach quotes to sources
+    var sources = _(find_source).values();    //this only includes one source per page_id
+    _(sources).each(function(source){
+        source.quotes = quotes_for_source[source.page_id] || [];
+    });
+
+    // -- attach notes to quotes
+    var quotes = _(find_quote).values();
+    _(quotes).each(function(quote) {
+        quote.notes = notes_for_quotes[quote._id] || [];
+    });
+
+    // -- sort quotes by page_order within each source
+    // TODO!
+   
+    
+    //used in template : returns true if the item in the current context, note or quote, is the user's
+    var is_user_page = req.client && (user_id) && user_id==req.userCtx.name ;
+    
+    
+    var data = {
+        title : 'untitled', //todo
+        sources : sources,
+        is_user_page : is_user_page,
+        user_id : user_id
+    };
+    
+    
+    var content = templates.render('quotes.html', req, data);
+    
+
+    return {title: 'note-o-rama : ', content: content };
+
 }

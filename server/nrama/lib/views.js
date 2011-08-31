@@ -67,12 +67,19 @@ exports.author_userId = {
     if( doc.AUTHOR && doc.user_id ) {
       var year = doc.YEAR || null;    //order is [year_unknown, 1965, 1990, 2000],  (typically reversed)
       for( idx in doc.AUTHOR ) {
-        emit([doc.AUTHOR[idx], doc.user_id, year], null)
+        emit([doc.AUTHOR[idx], doc.user_id, year], null);
       }
     }
   }
 }
 
 exports.tag_userId = {
-  
+  map : function(doc) {
+    if( doc.tags && doc.user_id ) {
+      for( idx in doc.tags ) {
+        var tag = doc.tags[idx];
+        emit([tag, doc.user_id], null);
+      }
+    }
+  }
 }
