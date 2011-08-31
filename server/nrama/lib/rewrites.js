@@ -7,8 +7,9 @@
  */
 
 module.exports = [
-    // -- for the nrama application
     {from: '/static/*', to: 'static/*'},
+    {from: '/xdm/*', to: 'xdm/*'},
+    // -- for the nrama application
     {
         from : '/sources',
         to : '_list/sources/source',

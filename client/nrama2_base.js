@@ -1,6 +1,6 @@
 /**
  * note-o-rama, second attempt
- * (c) 2011 Stephen A. Butterfill
+ * Copyright (c) 2011 Stephen A. Butterfill, http://note-o-rama.com
  * 
  * I haven't decided what license to use yet, it will depend on what
  * I end up linking to.  For now if you want to use any of this, please
@@ -29,7 +29,7 @@ _nrama_init=function _nrama_init($){
     //fix uuids so that it doesn't include dashes (no good for couchDB)
     nrama.uuid = function (){
         var before = uuid();
-        var after = 'njs'+before.replace(/-/g,'');
+        var after = 'N'+before.replace(/-/g,'');
         return after;
     };
 
@@ -39,7 +39,8 @@ _nrama_init=function _nrama_init($){
         server_url : 'http://127.0.0.1:5984/',  //must include trailing slash
         //server_url : 'http://noteorama.iriscouch.com/',
         db_name : 'nrama',
-        easyXDM_cors_url : 'http://127.0.0.1:5984/easy_xdm/cors/provider.html',
+        xdm_url : 'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.html',
+        easyXDM_cors_url : 'http://127.0.0.1:5984/easy_xdm/cors/provider.html', //TODO remove -- for old persist
         // -- user identification
         user_id : 'steve@gmail.com', // nrama.uuid(),
         password : 'new',   //TODO think of clever way to store this
@@ -89,22 +90,25 @@ _nrama_init=function _nrama_init($){
     nrama.settings.note_editor_style['width'] = nrama.settings.note_width+"px";
     
     nrama._internal = {
-        zindex_counter : 10000,  //used for bringing notes to the front
-        is_connected : false // true if known to be connected  TODO remove?
-    }
+        zindex_counter : 10000  //used for bringing notes to the front
+    };
     
     nrama._debug = function(){};    //does nothing if not debugging
     if( nrama.settings.debug ) {
-        $=jQuery;   
-        cb = function(res){ nrama._debug({res:res}); }; //convenience callback for testing async
-        //global object contains stuff for debugging
-        d = {};
-        nrama._debug = function _debug(map){
-            $.each(map, function(key,val){
-                $.log('nrama._debug setting d.'+key+'='+val);
-                d[key]=val;
+        window.$=jQuery;   //<-- nb breaks noConflict
+        nrama._debug = function _debug(map_or_array){
+            $.each(map_or_array, function(key,val){
+                  if( isFinite(key) ) {
+                    key = 'a'+key;      //allows us to handle arrays
+                  }
+                  $.log('nrama._debug setting '+key+'='+val);
+                  window[key]=val;
             });
         };
+        window.cb = function(){ $.log('window.cb called, sending arguments to _debug'); nrama._debug(arguments); }; //convenience callback for testing async
+        window.cbe = function(){ $.log('window.cbe, sending arguments to _debug'); nrama._debug(arguments); };
+        window.cbs = {success:cb,error:cbe,on_success:cb,on_error:cbe};
+        window.o={created:new Date().getTime(),field:'value for msteve',anum:Math.random(1)*10};
     }
     //configure jQuery.log 
     $.extend({"log":function(){
@@ -117,8 +121,12 @@ _nrama_init=function _nrama_init($){
         } catch(e) {
           return false;
         }
-      }});
+    }});
     
+    nrama.default_callback = function() {
+        $.log('nrama.default_callback called with values:');
+        nrama._debug(arguments); 
+    }
     
     /**
      * nrama.page_id is a value s.t. two page instances have the same page_id exactly
@@ -134,221 +142,153 @@ _nrama_init=function _nrama_init($){
     jQuery(document).ready(function($){
         nrama.root_node = document.body;
     });
+
+    /**
+     * create RPC stuff
+     */
+    var stubs = {
+        test: {},
+        db_saveDoc: {},
+        db_removeDoc : {},
+        db_getView: {},
+        db_doUpdate : {},
+        session_login: {},
+        session_logout : {},
+        session_info : {},
+        db_getView2 : {}
+    };
+    nrama._rpc = new easyXDM.Rpc({ remote: nrama.settings.xdm_url },{ remote: stubs });
+    /**
+     * some messing around to get rpc to work with kanso.db and kanso.session is needed.
+     * (See the corresponding wrappers in xdm/provider.js|html to get full picture.)
+     * wrap_unarray is for undoing the effects of executing callbacks with all parameters
+     * collapsed into an array (easyXDM only allows for callbacks with a single parameter).
+     */
+    var is_array_like = function(thing) {
+        var verdict = true;
+        $.each(thing, function(key,value) {
+            if( verdict && key != parseInt(key) ) {     //nb don't use strict !== here, keys are strings
+                verdict = false;
+            }
+        });
+        return verdict;
+    }
+    var wrap_unarray = function(fn){
+        return function(){
+            if( arguments.length != 1 || !is_array_like(arguments[0]) ) {
+                fn.apply(this, arguments);
+            } else {
+                var new_args = [];      //should be an arry, in fact it's an object
+                $.each(arguments[0], function(key,value) {
+                    new_args[key] = value;
+                })
+                fn.apply(this, new_args);
+            }
+        }
+    };
+    var wrap_rpc = function( method ) {
+        return function( ) {
+            var new_arguments = [];
+            $.each(arguments, function(idx, arg){
+                if( typeof(arg) == 'function' ) {
+                    new_arguments.push( wrap_unarray(arg) );    //wrap because we're putting parameters into array for xdm
+                } else {
+                    new_arguments.push(arg);
+                }
+            });
+            //$.log('wrap rpc:'); nrama._debug(new_arguments);
+            method.apply(this, new_arguments);  
+        }
+    }
+    nrama.db = {
+        saveDoc : wrap_rpc( nrama._rpc.db_saveDoc ),
+        removeDoc : wrap_rpc( nrama._rpc.db_removeDoc ),
+        getView : wrap_rpc( nrama._rpc.db_getView ),
+        doUpdate : wrap_rpc( nrama._rpc.db_doUpdate )
+    };
+    nrama.session = {
+        login : wrap_rpc( nrama._rpc.session_login ),
+        logout : wrap_rpc( nrama._rpc.session_logout ),
+        info : wrap_rpc( nrama._rpc.session_info )
+    };
+    
     
     /**
      * Implements some of the couchdb api using easyXDM's 'cors' RPC.
      */
     nrama.persist = {
-        
         /**
-         * because we're doing cross domain stuff we can't just do $.ajax.
-         * Instead we need to call nrama.persist.rpc.request -- it works roughly the same
-         * This depends on some config:
-         *  -- easyXDM.js (and JSON2.js)
-         *  -- installing the cors html file (and its dependencies) on the server at:
-         *        nrama.settings.easyXDM_cors_url
-         *        e.g. localhost:5984/easy_xdm/cors/provider.html
+         * save a note or a quote (or that JSON.stringify will work on, really).
+         * NB: If successful, will update a _rev property on thing and insert _id
+         * NB: if options.clone_on_conflict, @param thing will have its properties updated  incl. new _id
          */
-        rpc : new easyXDM.Rpc({
-                                    remote: nrama.settings.easyXDM_cors_url
-                                },
-                                {
-                                    remote: {
-                                        request: {}
-                                    }
-                                }),
-        /**
-         * simple wrapper for easyXDM's rpc.request
-         * @param options are like those for jQuery.ajax 
-         * if request succeeds, options.success is called with the data parsed as
-         * JSON (i.e. you're in trouble if the data is HTML or otherwise not JSON).
-         *
-         * TODO : this is really klunky! Plus I don't think data works with DELETE
-         *  might implement jquery.couch.js over RPC but that adds >100kb to load
-         */
-        ajax : function ajax( options ){
-            var defaults = {
-                data : {},
-                success : function(){},
-                error : function(){},
-                type : 'GET',
-                headers : {'Content-Type': 'application/json'}
-            };
-            var settings = $.extend({}, defaults, options);
-            var _success = function _success(res){
-                var data;
-                try {
-                    data = JSON.parse(res.data);
-                } catch(e) {
-                    $.log('nrama.persist.ajax _success callback error in JSON.parse, re-throwing');
-                    throw e;
-                }
-                settings.success(data);
-            };
-            var _error = function _error(res) {
-                var data = res.data || {};
-                var message = res.message || '';
-                $.log('nrama.persist.ajax: error saving '+(data.type || '')+' '+(data._id || data.uuid || '')); 
-                nrama._debug({data:data,message:message});
-                (settings.error || function(){})( data, message ); 
-            };
-            if( settings.type == 'GET' ) {
-                settings.processData = true;
-            } else {
-                settings.data = JSON.stringify(settings.data);
-                settings.processData = false;
+        save : function save(thing, options/*optional*/, callback ) {
+            if( !callback || typeof(options) == 'function' ) {
+                callback = options;
+                options = {}
             }
-            nrama.persist.rpc.request({
-                url : settings.url,
-                data : settings.data,
-                processData : settings.processData,
-                method : settings.type,
-                headers : settings.headers 
-                },
-                _success,
-                _error
-            );
-        },
-        
-        login : function login(on_success, on_error) {
-            nrama.persist.ajax({
-                url:nrama.settings.server_url+'_session',
-                type:'POST',
-                success:on_success,
-                error:on_error,
-                data:{name:nrama.settings.user_id,password:nrama.settings.password}
-            });        
-        },
-        
-        logout : function logout(on_success, on_error) {
-            nrama.persist.ajax({
-                url:nrama.settings.server_url+'_session',
-                type:'DELETE',
-                success:on_success,
-                error:on_error
-            });        
-        },
-        
-        is_logged_in : function is_logged_in (on_success, on_error) {
-            var _success = function(res) {
-                //logged in iff res.userCtx.name is not null
-                if( on_success ) {
-                    on_success( res.userCtx.name != null);
-                }
-            };
-            nrama.persist.ajax({
-                url:nrama.settings.server_url+'_session',
-                type:'GET',
-                success:_success,
-                error:on_error
-            });
-        },
-    
-        /**
-         * updates the value of nrama._internal.is_connected
-         * TODO remove?  replace with something that gets user info?
-         */
-        is_connected : function is_connected(on_success, on_error) {
-            var _error = function(res){
-                nrama._internal.is_connected = false;
-                $.log("nrama is_connected error"); 
-                nrama._debug({res:res});
-                if( on_error ) {
-                    on_error(res);
-                }
-            }
-            var _success = function(res){
-                nrama._internal.is_connected = true;
-                $.log("nrama is_connected success");
-                if( on_success ) {
-                    on_success(res);
-                }
-            }
-            nrama.persist.ajax({
-                                url : nrama.settings.server_url,
-                                data : {},
-                                type : "GET",
-                                success : _success,
-                                error : _error
-                });
-        },
-        
-        /**
-         * save a note or a quote (or anything with a uuid that JSON.stringify
-         *  will work on, really).
-         * NB: If successful, will update a _rev property on thing
-         * NB: if options.clone_on_conflict, @param thing will have its properties updated  incl. new uuid
-         */
-        save : function save(thing, on_success, on_error, options) {
             var defaults = {
                 clone_on_conflict : false   //e.g. set to true used when saving notes
             };
             var settings = $.extend(true, {}, defaults, options);
-            
-            // -- determine the url
-            var url = nrama.settings.server_url;
-            url += nrama.settings.db_name + '/';
-            url += thing.uuid;
-            
-            var _success = function _success(data){
-                thing._rev = data.rev;
-                ( on_success || function(){} )(data);
-            };
-            var _error = function _error(data, message) {
-                if( settings.clone_on_conflict && data.status == 409 ) {
-                        $.log('nrama.persist.save: conflict on save for '+(thing.type || '')+' '+thing.uuid+' --- started cloning');
-                        var new_uuid = nrama.uuid();
-                        var updates = { uuid : new_uuid, replaces_uuid : thing.uuid };
-                        var cloned_thing = $.extend(true, {}, thing, updates); 
-                        delete cloned_thing._rev;  //revision is no longer valid
-                        settings.clone_on_conflict = false;  //don't loop cloning
-                        var _clone_success = function _clone_success(data){
-                            thing = cloned_thing;   //messy
-                            ( on_success || function(){} )(data);
+
+            nrama.db.saveDoc(thing, function(error, data){
+                nrama._debug({msg:'nrama.persist.save ',error:error, data:data, settings:settings});
+                if( error ) {
+                    if( settings.clone_on_conflict ) {
+                        if( error.status == 409 || error.error == "conflict")  {
+                            $.log('nrama.persist.save: conflict on save for '+(thing.type || '')+' '+thing._id+' --- started cloning');
+                            nrama.persist.clone(thing, callback);
+                            return;
                         }
-                        nrama.persist.save(cloned_thing, _clone_success, on_error, settings);
-                } else {
-                    ( on_error || function(){} )(data,message);
+                    }
+                    $.log('nrama.persist.save: unhanlded error')
+                    callback(error, data);
+                    return;
                 }
-            };
-            nrama.persist.ajax({
-                                url : url,
-                                data : thing,
-                                type : "PUT",
-                                success : _success,
-                                error : _error
-            })
+                thing._rev = data.rev;
+                thing._id = data.id;
+                callback();
+            });
         },
         
         /**
-         * deletes a quote or note from the server providing it has a '_rev' property.
-         * if no _rev property, calls on_error with an empty object
-         *  (we exploit this below --- absence of _rev means it's not an object
-         *  that has come from, or been sent to, the server).
-         * 
-         * for the api we're using, see:
-         *   http://www.couchbase.org/sites/default/files/uploads/all/documentation/couchbase-api-dbdoc.html#couchbase-api-dbdoc_db-doc_delete
+         * create and persist a clone of a note or quote, updating the
+         * passed thing in place.
          */
-        rm : function rm(thing, on_success, on_error) {
-            if( !thing._rev ) {
-                $.log("nrama can't delete "+ (thing.type||'') +" " + thing.uuid +" because no _rev");
-                if( on_error ) {
-                    on_error({});
-                } else {
-                    return;
+        clone : function(thing, callback) {
+            var new_id = nrama.uuid();
+            var updates = {
+                _id : new_id,
+                replaces_id : thing._id };
+            var cloned_thing = $.extend(true, {}, thing, updates); 
+            delete cloned_thing._rev;  //revision is no longer valid
+            nrama.persist.save(cloned_thing, function(error, data){
+                if( !error ) {
+                    thing = cloned_thing;   //messy
                 }
+                callback(error,data);
+            });
+        },
+
+        /**
+         * assumes that thing.type (e.g. 'source') is the name of the couchdb update function
+         * thing must have .type and ._id attributes
+         */
+        update : function update(thing, callback) {
+            nrama.db.doUpdate( thing, encodeURIComponent( thing.type ), callback);
+        },
+
+        /**
+         * deletes a quote or note from the server providing it has a '_rev' property.
+         * if no _rev property, nothing happens but this is callback'ed as success.
+         *  (we exploit this below --- absence of _rev means it's not been persisted)
+         */
+        rm : function rm(thing, callback) {
+            if( !thing._rev ) {
+                callback(null, { deleted:false, message:'nrama.persist.rm did not delete because '+(thing.type ||'')+' '+(thing._id || '')+' has no _rev'});
             }
-            var url = nrama.settings.server_url;
-            url += nrama.settings.db_name + '/';
-            url += thing.uuid;
-            url += '?rev='+thing._rev;  //nb parameter name must be 'rev' not '_rev'
-            nrama.persist.ajax({
-                                url : url,
-                                type : "DELETE",
-                                data : {},  //rev is specified as part of URL
-                                success : on_success,
-                                error : on_error
-            })
+            nrama.db.removeDoc(thing, callback);
         },
         
         /**
@@ -356,38 +296,28 @@ _nrama_init=function _nrama_init($){
          * @param options.page_id is the page to load stuff for (nrama.page_id)
          * @param options.type{String} [optional] specifies which type of objects to load (required)
          * @param options.user_id{String} [optional] (cannot be specified unless type is specified)
-         * @param options.success{Function}  is the callback; will be passed the data
-         * @param options.error{Function} [optional] is the error callback
          */
-        load : function load(options) {
+        load : function load(options, callback) {
             var defaults = {
                 page_id : undefined, type : null, user_id : null,
                 success : null, error : null
             };
             var settings = $.extend({}, defaults, options);
-            var url = nrama.settings.server_url;
-            url += nrama.settings.db_name + '/';
-            url += '_design/nrama/_view/pageId_type_userId';
-            var data;
+            
+            var query;
             if( !settings.type ) {
-                data = {startkey:'["'+settings.page_id+'"]', endkey:'["'+settings.page_id+'",{}]'};
+                query = {startkey:'["'+settings.page_id+'"]', endkey:'["'+settings.page_id+'",{}]'};
             } else { //type is specified
                 if( !settings.user_id ) {
-                    data = {
+                    query = {
                         startkey:'["'+settings.page_id+'","'+settings.type+'"]',
                         endkey:'["'+settings.page_id+'","'+settings.type+'",{}]'
                     };
                 } else {    //type and user_id are specified
-                    data = {key:'["'+settings.page_id+'","'+settings.type+'","'+settings.user_id+'"]' };
+                    query = {key:'["'+settings.page_id+'","'+settings.type+'","'+settings.user_id+'"]' };
                 }
             }
-            nrama.persist.ajax({
-                url : url,
-                type : 'GET',
-                data : data,
-                success : settings.success,
-                error : settings.error
-            })
+            nrama.db.getView('pageId_type_userId', query, callback);
         }
     };
     
@@ -415,7 +345,81 @@ _nrama_init=function _nrama_init($){
     
     // the serializer to be used in creating new quotes
     nrama.serializer = nrama.serializers['rangy_1_2'];
+
     
+    /**
+     * for each page_id, each user should create a source.  Minimally this
+     *  need only contain the page_id.  But it should ideally contain a title
+     *  and, where possible, authors &c.
+     *
+     *  Depends:
+     *   - md5.js (for b64_hmac_md5)
+     *   - bibtex.js (for parsing bibtex)
+     */
+    nrama.sources = {
+        /**
+         * @returns the id of a source record for the user and page
+         */
+        calculate_id : function(user_id, page_id) {
+            return 'source_'+b64_hmac_md5(user_id, page_id);
+        },
+        
+        /**
+         * source will be modified in place.
+         */
+        update : function(source /*optional*/, callback) {
+            if( !source || typeof(source)=='function' ) {
+                callback = source;
+                source = {};
+            }
+            var defaults = {
+                type : 'source',
+                page_title : document.title,
+                url : document.location.href,
+                page_id : nrama.page_id,
+                user_id : nrama.settings.user_id
+            };
+            source = $.extend(true, defaults, source);
+            source._id = nrama.sources.calculate_id(source.user_id, source.page_id);
+            nrama.persist.update(source, callback);
+        },
+        
+        /**
+         * given a string, attempts to parse it as bibtex and update the source
+         * with the results
+         * TODO : this doesn't work with the AUTHOR ARRAY (gets mangled because persist.update uses PUT not POST (couldn't make it POST))
+         */
+        update_from_bibtex : function( bib_str, callback ) {
+            var parser = new BibtexParser();
+            parser.setInput(bib_str);
+            parser.bibtex();
+            var results = parser.getEntries();
+            var entry = null;  //we're expecting exactly one --- error if multiple provided
+            for( key in results ) {
+                if( entry != null ) {
+                    on_error({}, 'nrama.sources.parse_bibtex: input contained multiple entries ('+bib_str+')');
+                    return;
+                }
+                var entry = results[key];
+                var authors = [];
+                if( entry.AUTHOR ) {
+                    entry.AUTHOR_TEXT = entry.AUTHOR;
+                    entry.AUTHOR = nrama.sources.parse_authors(entry.AUTHOR_TEXT);
+                }
+            }
+            nrama.sources.update(entry, callback);
+        },
+        
+        /**
+         * This should return an array of canonically represented authors given
+         * a string of authors.  See js-bibtex.  TODO: make this work!
+         */
+        parse_authors : function( authors/*String*/ ) {
+            return authors.split(' and ');
+        }
+    };
+
+
     /**
      * depends on :
      *   Rangy
@@ -431,7 +435,7 @@ _nrama_init=function _nrama_init($){
          */
         create : function create(range) {
             return {
-                uuid : nrama.uuid(),  //uuid function is provided by a dependency
+                _id : nrama.uuid(),  
                 type : 'quote',
                 content : range.toString(),
                 tags : nrama.settings.tags, //string: space-separated list of tags this quote is tagged with
@@ -461,14 +465,14 @@ _nrama_init=function _nrama_init($){
          * @returns true if successful (or quote already displayed), false otherwise
          */
         display : function display(quote) {
-            if( $('.'+quote.uuid).length != 0 ) {
+            if( $('.'+quote._id).length != 0 ) {
                 return true;  //quote already displayed
             }
             var range = nrama.quotes.get_range(quote);
             if( range == null ) {
                 return false;
             }
-            var _rangy_highlighter = rangy.createCssClassApplier("_nrama-quote "+quote.uuid,false);
+            var _rangy_highlighter = rangy.createCssClassApplier("_nrama-quote "+quote._id,false);
             try{
                 _rangy_highlighter.applyToRange(range);
             } catch(error) { //seems to be rare
@@ -479,31 +483,31 @@ _nrama_init=function _nrama_init($){
                     return false;   //silently fail if not in debug mode
                 }
             }
-            $('.'+quote.uuid).css('background-color',quote.background_color).data('nrama_quote',quote);
+            $('.'+quote._id).css('background-color',quote.background_color).data('nrama_quote',quote);
             return true;
         },
         
         /**
          * remove a quote's highlights from the HTML document.
-         * leaves jQuery.data('nrama_quote') and uuid as class intact, so quote can
+         * leaves jQuery.data('nrama_quote') and _id as class intact, so quote can
          *   still be found (todo: not sure this is a good idea!).
          * todo -- this would ideally remove the elements so that subsequent quotes
          *  had more reliable xpointers (as long as we don't have a way of getting
          *  good xpointers).
          */
         undisplay : function undisplay(quote) {
-            $('.'+quote.uuid).
+            $('.'+quote._id).
                 removeClass('_nrama-quote').
                 css({'border-top':'none', 'border-bottom':'none', 'box-shadow':'none'}).
-                //removeClass(quote.uuid). //not sure whether I want to do this yet
+                //removeClass(quote._id). //not sure whether I want to do this yet
                 css('background-color','red').
                 animate({'background-color':'black'}, function(){
                     $(this).css('background-color','inherit');
                 });
         },
         
-        flash : function flash(quote_uuid) {
-            var $quote_nodes = $('.'+quote_uuid);
+        flash : function flash(quote_id) {
+            var $quote_nodes = $('.'+quote_id);
             $quote_nodes.css({'border-top':'1px dashed black',
                              'border-bottom':'1px dashed black',
                              'box-shadow':'0 0 20px' + nrama.settings.background_color });
@@ -516,19 +520,31 @@ _nrama_init=function _nrama_init($){
          * request quote delete from server and remove from page if successful
          */
         remove : function remove(quote) {
-            $('.'+quote.uuid).css('background-color','orange');
-            nrama.persist.rm(quote, function(){
-                //$.log("nrama deleted quote "+quote.uuid);
-                nrama.quotes.undisplay(quote);
+            $('.'+quote._id).css('background-color','orange');
+            nrama.persist.rm(quote, function(error, data){
+                if( !error ) {
+                    nrama.quotes.undisplay(quote);
+                } else {
+                    nrama._debug({msg:'nrama.quotes.remove: passing error to debug',error:error});
+                }
             });
         },
         
         /**
          * load quotes from server and display on this page
          */
-        load : function load(on_success,on_error) {
+        load : function load(callback) {
             $.log('nrama starting to load quotes ...');
-            var _success = function _success(data) {
+            nrama.persist.load({
+                page_id : nrama.page_id,
+                type : 'quote',
+                user_id : nrama.settings.me_only ? nrama.settings.user_id : undefined
+            }, function(error, data){
+                if( error ) {
+                    nrama._debug({msg:'nrama.quotes.load: error loading quotes', error:error});
+                    callback(error);
+                    return;
+                }
                 $.log('nrama loaded ' + data.rows.length + ' quotes from server');
                 //need to sort quotes by the time they were added to page for best chance of displaying them
                 var _sorter = function(a,b){ return a.value.created - b.value.created };
@@ -538,23 +554,14 @@ _nrama_init=function _nrama_init($){
                     var quote = row.value;
                     var success = nrama.quotes.display(quote);  //this won't re-display quotes already present
                     if( !success ) {
-                        _failing_quotes.push(quote.uuid);
+                        _failing_quotes.push(quote._id);
                     }
                 });
                 if( _failing_quotes.length > 0 ) {
-                    $.log('failed to display quotes with uuids: '+_failing_quotes);
+                    $.log('failed to display quotes with _ids: '+_failing_quotes);
                 }
-                if( on_success ) {
-                    on_success(data);
-                }
-            }
-            nrama.persist.load({
-                page_id : nrama.page_id,
-                type : 'quote',
-                user_id : nrama.settings.me_only ? nrama.settings.user_id : undefined,
-                success : _success,
-                error : on_error
-            });
+                callback(error, data);
+           });
         },
         
         /**
@@ -564,15 +571,15 @@ _nrama_init=function _nrama_init($){
         get_range : function get_range(quote) {
             var method = quote.xptr_method || '_method_unspecified'; //method for recovering the range from the quote
             if( ! (method in nrama.serializers) ) {
-                $.log('unknown xptr_method ('+method+') for quote '+quote.uuid);
+                $.log('unknown xptr_method ('+method+') for quote '+quote._id);
                 return null;
             }
             try {
                 var serializer = nrama.serializers[method];
                 return serializer.deserialize(quote.xptr);
             } catch(error) {
-                //$.log('nrama.quotes.display FAIL with range = '+quote.xptr+' for quote '+quote.uuid);
-                //$.log('nrama.quotes.display error = '+error);  //not usually informative
+                //$.log('nrama.quotes.display FAIL with range = '+quote.xptr+' for quote '+quote._id);
+                //nrama._debug({catch_error:error});  //not usually informative
                 return null;
             }
         },
@@ -580,8 +587,8 @@ _nrama_init=function _nrama_init($){
         /**
          * @returns a quote object (or null if not found)
          */
-        get_from_page : function get_from_page(quote_uuid) {
-            return $('.'+quote_uuid).first().data('nrama_quote') || null;
+        get_from_page : function get_from_page(quote_id) {
+            return $('.'+quote_id).first().data('nrama_quote') || null;
         },
         
         /**
@@ -608,8 +615,8 @@ _nrama_init=function _nrama_init($){
         /**
          * calculate the offset (.top, .left) of a quote
          */
-        offset : function offset(quote_uuid) {
-            return $('.'+quote_uuid).first().offset();
+        offset : function offset(quote_id) {
+            return $('.'+quote_id).first().offset();
         }
     }
     
@@ -622,15 +629,15 @@ _nrama_init=function _nrama_init($){
      */
     nrama.notes = {
         /**
-         * create a new note for a specified quote_uuid
+         * create a new note for a specified quote_id
          * If the quote can be found on the current page, the position of the
          * note will also be set (otherwise it will not).
          * 
-         * @param options{Object} specifies properties for the note, must include quote_uuid 
+         * @param options{Object} specifies properties for the note, must include quote_id 
          */
         create : function create(options){
             var defaults = {
-                uuid : nrama.uuid(),  //uuid function is provided by a dependency
+                _id : nrama.uuid(),  
                 type : 'note',
                 content : nrama.settings.note_default_text,
                 background_color : nrama.settings.note_background_color,
@@ -663,19 +670,14 @@ _nrama_init=function _nrama_init($){
             var note_right_gap = Math.min(15, viewport_width/65);
             note_defaults.left = viewport_width - note_right_gap - (note.width || nrama.settings.note_width) - random_shift();
             //to get default for top we need position of associated quote --- only compute this if we really need it
-            if( note.quote_uuid && !note.top ) {
-                //var quote = nrama.quotes.get_from_page(note.quote_uuid);
-                var quote_offset = nrama.quotes.offset(note.quote_uuid);
+            if( note.quote_id && !note.top ) {
+                var quote_offset = nrama.quotes.offset(note.quote_id);
                 if( quote_offset ) {
                     note_defaults.top = quote_offset.top + random_shift();
                 } else {
-                    $.log("nrama unable to get default position for note " + note.uuid + " because no quote offset found for quote " + note.quote_uuid + "(has the quote been added to the page?)");
+                    $.log("nrama unable to get default position for note " + note._id + " because no quote offset found for quote " + note.quote_id + "(has the quote been added to the page?)");
                 }
-            } else {
-                if( !note.top  ) {
-                    $.log("nrama unable to calculate position for note " + note.uuid + " because no quote_uuid property.");
-                }
-            }
+            } 
             note = $.extend(true, {}, note_defaults, note );
             
             // -- check the note container div exists, append to document.body if not
@@ -685,7 +687,7 @@ _nrama_init=function _nrama_init($){
             }
 
             // --- start properly here
-            if( $('#'+note.uuid).length != 0 ) {  
+            if( $('#'+note._id).length != 0 ) {  
                 nrama.notes.undisplay(note); //If note already displayed, undisplay it first.
             }
             var pos_attrs = {
@@ -701,7 +703,7 @@ _nrama_init=function _nrama_init($){
             var inner_div = $('<div></div>').css(nrama.settings.note_inner_style).
                                 append(textarea);
             var edit_note = $('<div></div').
-                                attr('id',note.uuid).
+                                attr('id',note._id).
                                 addClass('_nrama-note').
                                 css(pos_attrs).
                                 css(nrama.settings.note_style).
@@ -723,7 +725,7 @@ _nrama_init=function _nrama_init($){
          * remove HTML node represening note from the page
          */
         undisplay : function undisplay(note) {
-            $('#'+note.uuid).remove();
+            $('#'+note._id).remove();
         },
         
         /**
@@ -762,7 +764,7 @@ _nrama_init=function _nrama_init($){
             // -- if content unchanged, do nothing (so moving a note won't trigger a change)
             var old_content = note.content;
             if( old_content == new_content ) {
-                $.log('nrama.notes.update: note '+note.uuid+' content unchanged, will not persist');
+                //$.log('nrama.notes.update: note '+note._id+' content unchanged, will not persist');
                 _finally($textarea, true);
                 return;
             }
@@ -779,18 +781,18 @@ _nrama_init=function _nrama_init($){
             };
             var new_note = $.extend(true, {}, note, updates);   
             
-            var _success = function _success(){
-                $.log("nrama.notes.update_on_blur: was persisted note uuid:"+new_note.uuid+" for quote:"+new_note.quote_uuid);
-                $note.attr('id',new_note.uuid); //may have changed (save can clone)
-                $note = $('#'+new_note.uuid);   //have to update after changing id attribute
+            nrama.persist.save(new_note, {clone_on_conflict:true}, function(error,data){
+                if( error ) {
+                    $note.css({backgroundColor:nrama.settings.persist_failed_color});
+                    _finally($textarea, false);
+                    return;
+                }
+                $.log("nrama.notes.update_on_blur: was persisted note _id:"+new_note._id+" for quote:"+new_note.quote_id);
+                $note.attr('id',new_note._id); //may have changed (save can clone)
+                $note = $('#'+new_note._id);   //have to update after changing id attribute
                 $note.data('nrama_note', new_note);
                 _finally( $('textarea',$note), true );
-            };
-            var _error = function _error() {
-                $note.css({backgroundColor:nrama.settings.persist_failed_color});
-                _finally($textarea, false);
-            };
-            nrama.persist.save(new_note, _success, _error, { clone_on_conflict : true } );
+            });
         },
         
         update_on_drag : function update_on_drag(e) {
@@ -810,26 +812,31 @@ _nrama_init=function _nrama_init($){
                 doc_height : $(document).height(),
                 doc_width : $(document).width()
             };
-            note = $.extend(true, {}, note, updates);   //overwrite even if fail!
-            var _finally = function(data){
+            nrama.persist.save(note, {clone_on_conflict:false}, function(error, data){
+                if( !error ) {
+                    note = $.extend(true, note, updates);   
+                }
                 $textarea.removeAttr('disabled');
                 nrama._debug({ note_rev:note._rev, data_rev:data.rev});
-            };
-            nrama.persist.save(note, _finally, _finally, { clone_on_conflict : false } );
+            });
         },
         
         /**
          * request delete from server & remove from document if succeeds
          */
         remove : function remove($note) {
-            var note_uuid = $note.attr('id');
+            var note_id = $note.attr('id');
             $note.css('background-color','red');
             var note = $note.data('nrama_note');
-            nrama.persist.rm(note, function(){
-                $.log("deleted note "+note_uuid+" from server.");
-                $note.hide('puff',{},300+Math.floor(Math.random()*1700), function(){
-                    $note.remove();
-                });
+            nrama.persist.rm(note, function(error, data){
+                if( !error ) {
+                    $.log("deleted note "+note_id+" from server.");
+                    $note.hide('puff',{},300+Math.floor(Math.random()*1700), function(){
+                        $note.remove();
+                    });
+                } else {
+                    nrama._debug({msg:'nrama.notes.remove --- error removing note', error:error});
+                }
             });
     
         },
@@ -838,42 +845,41 @@ _nrama_init=function _nrama_init($){
          * load notes from server and display on this page
          * run after quotes have been loaded and displayed in case notes need positioning
          */
-        load : function load(on_success, on_error) {
-            var _success = function _success(data) {
+        load : function load(callback) {
+            nrama.persist.load({
+                page_id : nrama.page_id,
+                type : 'note',
+                user_id : nrama.settings.me_only ? nrama.settings.user_id : undefined
+            }, function(error, data){
+                if( error ) {
+                    nrama._debug({msg:'nrama.notes.load error:', error:error})
+                    callback(error);
+                    return;
+                }
                 $.log('nrama loaded ' + data.rows.length + ' notes from server');
                 $.each(data.rows, function(index,row){
                     var note = row.value;
                     nrama.notes.display(note, {focus:false});
                 });
-                if( on_success ) {
-                    on_success(data);
-                }
-            }
-            nrama.persist.load({
-                page_id : nrama.page_id,
-                type : 'note',
-                user_id : nrama.settings.me_only ? nrama.settings.user_id : undefined,
-                success : _success,
-                error : on_error
+                callback(error, data);
             });
         },
         
         /**
-         * @returns uuids of notes if @param quote has notes attached
+         * @returns _ids of notes if @param quote has notes attached
          */
         find : function find(quote) {
-            var uuids = [];
+            var _ids = [];
             $('._nrama-note').each(function(){
-                var rel_quote_uuid = $(this).data('nrama_note').quote_uuid;
-                if( rel_quote_uuid == quote.uuid ) {
-                    //add uuid of the note to the list
-                    uuids.push($(this).attr('id'));
+                var rel_quote_id = $(this).data('nrama_note').quote_id;
+                if( rel_quote_id == quote._id ) {
+                    _ids.push($(this).attr('id'));  //add _id of the note to the list
                 }
             });
-            return uuids;
+            return _ids;
         }
     }
-    
+   
     /**
      * main setup:
      *  - init dependencies & nrama
@@ -884,8 +890,8 @@ _nrama_init=function _nrama_init($){
         $.log("nrama2 starting up");
         rangy.init();
         $.log('loading notes and quotes ...');
-        nrama.quotes.load();
-        nrama.notes.load();
+        nrama.quotes.load( nrama.default_callback );
+        nrama.notes.load( nrama.default_callback );
         
         // --- configure events ---
         
@@ -909,12 +915,13 @@ _nrama_init=function _nrama_init($){
                 }
             }
             var quote = nrama.quotes.create(range);
-            nrama.persist.save(quote, function(){
-                //only display the quote after it has been saved
-                //(todo -- some indicate that it is being saved?)
-                nrama.quotes.display(quote);
+            nrama.persist.save(quote, function(error, data){
+                //(todo -- some indicate that it has failed?
+                if( !error ) {
+                    nrama.quotes.display(quote);   //display the quote only after it has been saved
+                }
             });
-            nrama._debug((function(){ var a={}; a[quote.uuid]=quote; return a; })()); 
+            nrama._debug((function(){ var a={}; a[quote._id]=quote; return a; })()); 
         });
         
         //click a quote to create a note
@@ -928,7 +935,7 @@ _nrama_init=function _nrama_init($){
                 return;
             }   
             var quote = $(this).data('nrama_quote');
-            var note = nrama.notes.create({quote_uuid:quote.uuid});
+            var note = nrama.notes.create({quote_id:quote._id});
             nrama.notes.display(note);
         });
         
@@ -936,21 +943,21 @@ _nrama_init=function _nrama_init($){
         $('._nrama-quote').live('click', function(e){
             if( e.altKey || e.metaKey ) {
                 var quote = $(this).data('nrama_quote');
-                var note_uuids = nrama.notes.find(quote);
-                if( note_uuids.length != 0 ) {
+                var note_ids = nrama.notes.find(quote);
+                if( note_ids.length != 0 ) {
                     //don't delete quotes with notes attached ...
-                    var $quote_nodes = $('.'+quote.uuid);
+                    var $quote_nodes = $('.'+quote._id);
                     $quote_nodes.css({'border-top':'1px dashed red',
                                      'border-bottom':'1px dashed red'})
                     //... instead make the relevant notes bounce
-                    var idstr = '#' + note_uuids.join(', #');
+                    var idstr = '#' + note_ids.join(', #');
                     $(idstr).effect('bounce', function(){
                         $quote_nodes.css({'border-top':'none',
                                          'border-bottom':'none'},500)
                     });
                     return;
                 }
-                $.log("nrama start deleting quote "+quote.uuid);
+                $.log("nrama start deleting quote "+quote._id);
                 nrama.quotes.remove(quote);
                 return;
             }
@@ -962,7 +969,7 @@ _nrama_init=function _nrama_init($){
             var $note = $(this).parents('._nrama-note').first();
             $note.css('z-index',nrama._internal.zindex_counter++);  //move note to frong
             var note= $note.data('nrama_note');
-            nrama.quotes.flash(note.quote_uuid);
+            nrama.quotes.flash(note.quote_id);
         });
         
         //tabbing out of a note doesn't move to next note (because weird)
@@ -990,25 +997,25 @@ if( typeof(nrama) == 'undefined' ) {    //ensure nothing happens if nrama is alr
         // run in bookmarklet mode : load libraries & only start work after they loaded
         // thank you http://stackoverflow.com/questions/756382/bookmarklet-wait-until-javascript-is-loaded
         nrama.loadScript = function loadScript(url, callback) {
-                var head = document.getElementsByTagName("head")[0];
-                var script = document.createElement("script");
-                script.src = url;
-        
-                // Attach handlers for all browsers
-                var done = false;
-                script.onload = script.onreadystatechange = function() {
-                        if( !done && ( !this.readyState 
-                                                || this.readyState == "loaded" 
-                                                || this.readyState == "complete") ) {
-                                done = true;
-                                callback();
-        
-                                // Handle memory leak in IE
-                                script.onload = script.onreadystatechange = null;
-                                head.removeChild( script );
-                        }
-                };
-                head.appendChild(script);
+            var head = document.getElementsByTagName("head")[0];
+            var script = document.createElement("script");
+            script.src = url;
+    
+            // Attach handlers for all browsers
+            var done = false;
+            script.onload = script.onreadystatechange = function() {
+                if( !done && ( !this.readyState 
+                                        || this.readyState == "loaded" 
+                                        || this.readyState == "complete") ) {
+                    done = true;
+                    callback();
+
+                    // Handle memory leak in IE
+                    script.onload = script.onreadystatechange = null;
+                    head.removeChild( script );
+                }
+            };
+            head.appendChild(script);
         }
         nrama.loadScript(_NRAMA_LIB_URL, function() {
             $.noConflict();

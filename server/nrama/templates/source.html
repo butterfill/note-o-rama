@@ -19,6 +19,8 @@
 {/user_id}
 
 
+<p>Nof notes: {nof_notes}</p>
+
 {?quotes}
     {#quotes}
         <div class="quote" id="{_id}" >
@@ -81,3 +83,11 @@
         $('textarea.note-content').autogrow();
     }
 </script>
+
+<ul>
+    {#notes}
+    <li>
+        {quote_id} >< {content}
+    </li>
+    {/notes}
+</ul>

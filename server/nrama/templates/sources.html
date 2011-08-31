@@ -13,6 +13,12 @@
                     [<a href="{baseURL}/user/{user_id}" class="to_source">{user_id}</a>]
                 {/page_user_id}
                 <a href="{baseURL}{user_url}/source/{page_id_enc}">{page_title}</a> [{_id}]
+                {?AUTHOR}
+                    <br />
+                {/AUTHOR}
+                {#AUTHOR}
+                    <span>{.}</span>{@sep} and {/sep}
+                {/AUTHOR}
                 <div class="updated">Updated <abbr class="updated_time _timeago" title="{updated_time}">{updated_time}</abbr>.</div>
                 <div class="page_id"><abbr class="page_id">{page_id}</abbr></div>
             </li>

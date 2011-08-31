@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+  <head>
+    <title>nrama xdm provider</title>
+    <script type="text/javascript" src="jquery.min.js"></script>
+    <script type="text/javascript" src="jquery.couch.js"></script>
+    <script type="text/javascript" src="db.nrama.js"></script>
+    <script type="text/javascript" src="session.nrama.js"></script>
+    <script type="text/javascript" src="easyXDM.min.js"></script>
+    <script type="text/javascript">
+      easyXDM.DomHelper.requiresJSON("json2.js");
+    </script> 
+  </head>
+  <body>
+    <p>Hello ...</p>
+      
+    <script>
+      //to help checking its working when loaded in the browser
+      cb=function(){ console.log('success'); for(i in arguments){ console.log(i+':'+arguments[i]); window['a'+i]=arguments[i]; } };
+      cbe=function(){ console.log('error'); for(i in arguments){ console.log(i+':'+arguments[i]); window['a'+i]=arguments[i]; }  };
+      cbs={success:cb,error:cbe};
+      cbons={on_success:cb,on_error:cbe};
+      o={created:new Date().getTime(),field:'value for msteve',anum:Math.random(1)*10};o.anum
+      //$db = $.couch.db("nrama")
+      //$db.saveDoc(a,cbs)
+      //$db.openDoc("4fd6d7557c170c9fa24211c3eb08a478", cbs)
+    </script>
+    
+    
+    
+    <script src="provider.js">
+      
+    </script>
+
+      
+  </body>
+</html>
+

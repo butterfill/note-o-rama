@@ -3,7 +3,8 @@
  */
 var templates = require('kanso/templates'),
     events = require('kanso/events'),
-    db = require('kanso/db');
+    db = require('kanso/db'),
+    _ = require('kanso/underscore')._;
 
 exports.all_users = function (head, req) {
 
@@ -117,7 +118,6 @@ exports.source = function(head, req) {
             source = thing;
             source.updated_time = new Date(source.updated).toISOString()
         }
-        
         if( thing.type == 'quote' ) {
             var quote = thing;
             find_quote[quote._id] = quote;
@@ -126,10 +126,10 @@ exports.source = function(head, req) {
         if( thing.type == 'note' ) {
             var note = thing;
             find_note[note._id] = note;
-            if( !notes_for_quotes[note.quote_uuid]  ) {
-                notes_for_quotes[note.quote_uuid] = [];
+            if( !notes_for_quotes[note.quote_id]  ) {
+                notes_for_quotes[note.quote_id] = [];
             }
-            notes_for_quotes[note.quote_uuid].push(note);
+            notes_for_quotes[note.quote_id].push(note);
         }
         
         row = getRow();
@@ -180,6 +180,7 @@ exports.source = function(head, req) {
     for( idx in quotes ) {
         var quote = quotes[idx];
         quote.notes = notes_for_quotes[quote._id] || [];
+        quote.nof_notes = _.size(notes_for_quotes[quote._id]);
     }
     
     // -- configure note edit event
@@ -238,10 +239,9 @@ exports.source = function(head, req) {
                 console.log(uuid);
                 var note = {
                     _id : uuid,
-                    uuid : uuid,
                     type : 'note',
                     content : "type here",
-                    quote_uuid : quote.uuid,
+                    quote_id : quote._id,
                     page_id : quote.page_id,
                     url : quote.url,
                     created : new Date().getTime(),
@@ -261,6 +261,7 @@ exports.source = function(head, req) {
     //used in template : returns true if the item in the current context, note or quote, is the user's
     var is_user_page = req.client && (user_id) && user_id==req.userCtx.name ;
     
+    
     var data = {
         title : (title || 'untitled'),
         url : url,
@@ -268,7 +269,9 @@ exports.source = function(head, req) {
         quotes : quotes,
         is_user_page : is_user_page,
         user_id : user_id,
-        source : source
+        source : source,
+        nof_notes : _.size(find_note),
+        notes : _.toArray(find_note)
     };
     
     
