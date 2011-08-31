@@ -5,6 +5,16 @@
  */
 
 /**
+ * bibliographic
+ */
+.booktitle {
+    font-style: italic;
+}
+.journal {
+    text-decoration : underline;
+}
+
+/**
  * the logo & login bit, top right
  */
 

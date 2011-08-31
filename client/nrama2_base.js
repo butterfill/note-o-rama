@@ -374,7 +374,7 @@ _nrama_init=function _nrama_init($){
             }
             var defaults = {
                 type : 'source',
-                page_title : document.title,
+                TITLE : document.title,
                 url : document.location.href,
                 page_id : nrama.page_id,
                 user_id : nrama.settings.user_id
@@ -387,26 +387,24 @@ _nrama_init=function _nrama_init($){
         /**
          * given a string, attempts to parse it as bibtex and update the source
          * with the results
-         * TODO : this doesn't work with the AUTHOR ARRAY (gets mangled because persist.update uses PUT not POST (couldn't make it POST))
+         * E.g.
+         *   b='@incollection{Baillargeon:1995lu,	Address = {Oxford},	Author = {Baillargeon, Ren{\'e}e and Kotovsky, Laura and Needham, Amy},	Booktitle = {Causal cognition. A multidisciplinary debate},	Date-Added = {2010-08-04 17:40:21 +0100},	Date-Modified = {2010-08-04 17:40:38 +0100},	Editor = {Sperber, Dan and Premack, David},	Pages = {79-115},	Publisher = {Clarendon},	Title = {The Acquisition of Physical Knowledge In Infancy},	Year = {1995}}'
          */
-        update_from_bibtex : function( bib_str, callback ) {
+        update_from_bibtex : function(bib_str, callback) {
             var parser = new BibtexParser();
             parser.setInput(bib_str);
             parser.bibtex();
             var results = parser.getEntries();
-            var entry = null;  //we're expecting exactly one --- error if multiple provided
-            for( key in results ) {
-                if( entry != null ) {
-                    on_error({}, 'nrama.sources.parse_bibtex: input contained multiple entries ('+bib_str+')');
-                    return;
-                }
-                var entry = results[key];
-                var authors = [];
-                if( entry.AUTHOR ) {
-                    entry.AUTHOR_TEXT = entry.AUTHOR;
-                    entry.AUTHOR = nrama.sources.parse_authors(entry.AUTHOR_TEXT);
-                }
+            if( _.size(results) != 1 ) {
+                callback({}, 'nrama.sources.parse_bibtex: input contained '+_.size(results)+' entries ('+bib_str+')');
+                return;
             }
+            var entry = _.toArray(results)[0];
+            if( entry.AUTHOR ) {
+                entry.AUTHOR_TEXT = entry.AUTHOR;
+                entry.AUTHOR = nrama.sources.parse_authors(entry.AUTHOR_TEXT);
+            }
+            entry.bibtex = bib_str;
             nrama.sources.update(entry, callback);
         },
         
@@ -415,6 +413,7 @@ _nrama_init=function _nrama_init($){
          * a string of authors.  See js-bibtex.  TODO: make this work!
          */
         parse_authors : function( authors/*String*/ ) {
+            nrama._debug({authors:authors});
             return authors.split(' and ');
         }
     };
@@ -437,7 +436,7 @@ _nrama_init=function _nrama_init($){
             return {
                 _id : nrama.uuid(),  
                 type : 'quote',
-                content : range.toString(),
+                content : $.trim( range.toString() ),
                 tags : nrama.settings.tags, //string: space-separated list of tags this quote is tagged with
                 background_color : nrama.settings.background_color,
                 //the xpointer to the quote (well, it isn't actually an xpointer but  any serialized representation of the raneg)
@@ -915,13 +914,15 @@ _nrama_init=function _nrama_init($){
                 }
             }
             var quote = nrama.quotes.create(range);
-            nrama.persist.save(quote, function(error, data){
-                //(todo -- some indicate that it has failed?
-                if( !error ) {
-                    nrama.quotes.display(quote);   //display the quote only after it has been saved
-                }
-            });
-            nrama._debug((function(){ var a={}; a[quote._id]=quote; return a; })()); 
+            if( quote.content != '' ) {
+                nrama.persist.save(quote, function(error, data){
+                    //(todo -- some indicate that it has failed?
+                    if( !error ) {
+                        nrama.quotes.display(quote);   //display the quote only after it has been saved
+                    }
+                });
+                nrama._debug((function(){ var a={}; a[quote._id]=quote; return a; })()); 
+            }
         });
         
         //click a quote to create a note

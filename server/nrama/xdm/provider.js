@@ -68,11 +68,11 @@ $.each(session, function(key, method){
 */
 new easyXDM.Rpc({}, {local : local} );
 
-
 /**
  * This is how to do the same for jquery.couch.db instead
- */
-var $db = $.couch.db('nrama');
+ * Note that callbacks cannot be wrapped in objects when passed as parameters
+ * 
+var $db = $.couch.db('nrama');  // <-- your db name goes here
 var expose = {
     test : {
         method : function(on_success, on_error, object) {
@@ -106,3 +106,4 @@ var expose = {
     }
     // etc
 };
+ */

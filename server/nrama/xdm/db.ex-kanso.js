@@ -4,9 +4,9 @@
  * modified to use independently of kanso.
  * added doUpdate for updates (only partially implemented, currently a nasty hack)
  *
- * NB: be sure to update:
- *  - settings.name
- *  - utils.getBaseURL
+ * NB: before using be sure to define:
+ *  - settings.db_name
+ *  - settings.app_name
  *  
  * converted from CommonJS to ordinary, embeddable JS:
  *  exports becomes db
@@ -20,6 +20,14 @@
  * @module
  */
 
+/**
+ * NB: do something like this before using db.nrama.js
+ *
+settings = {
+    db_name : 'nrama',         // <-- NB, set this (same as 'name' in kanso.json in the root of your project)
+    app_name : 'nrama'
+}
+*/
 
 
 /**
@@ -38,17 +46,18 @@ if (utils.isBrowser) {
 }
 */
 
-settings = {
-    name : 'nrama'         // <-- NB, set this (same as 'name' in kanso.json in the root of your project)
-}
-utils = {
-    isBrowser : function(){ return true; },
-    getBaseURL : function(){ return '/'+settings.name+'/_design/'+settings.name+'/_rewrite'; }  // <-- NB, you may need to set this (just put {baseURL} into a template if you're not sure what it should be)
-};
-
 // This is no longer CommonJS
 db = {};
 (function(exports) {
+    
+    /**
+     * added for ex-kanso : fake the parts of kanso/utils that we need
+     */ 
+    utils = {
+        isBrowser : function(){ return true; },
+        getBaseURL : function(){ return settings.baseURL; }  
+    };
+
     /**
      * When a db call results in an unauthorized response, the user's session is
      * checked to see if their session has timed out or they've logged out in
@@ -313,6 +322,9 @@ db = {};
      */
     
     exports.doUpdate = function( doc, update_name, callback ) {
+        if (!utils.isBrowser()) {
+            throw new Error('doUpdate cannot be called server-side');
+        }
         var url = utils.getBaseURL() + '/update/' + update_name +'/' + exports.encode( doc._id );
         var req = {
             type: 'PUT',
@@ -320,17 +332,9 @@ db = {};
             data: JSON.stringify(doc),
             processData: false,
             contentType: 'application/json',
-            //expect_json: true                 //for some reason the update returns json with text/html header.
-            expect_json:false
+            expect_json:false               //as of couchdb 1.1.0, updates seem to defy attempts to alter headers & return text/html header.
         };
-        exports.request(req, function(error,data){
-            if( !error ) {
-                var jsondata = $.parseJSON(data);
-                callback(error, jsondata);
-                return;
-            }
-            callback(error,data);
-        });
+        exports.request(req, callback);
     }
 
     

@@ -1,6 +1,6 @@
 /**
  * modified to use in browser independently of the whole kanso app
- * quite a bit of the functionality has been removed.
+ * Some methods have been removed (e.g. signup, which would add dependencies).
  *
  * converted from CommonJS to ordinary, embeddable JS:
  *  exports becomes session
@@ -17,6 +17,15 @@
 // This is no longer CommonJS
 session = {};
 (function(exports){
+
+    /**
+     * added for ex-kanso : fake the parts of kanso/utils that we need
+     */ 
+    utils = {
+        isBrowser : function(){ return true; },
+        getBaseURL : function(){ return settings.baseURL; } 
+    };
+
     /**
      * Module dependencies
      */
@@ -25,7 +34,7 @@ session = {};
         sha1 = require('./sha1'),   //not required
         cookies = require('./cookies'), //not required
         events = require('./events')  //not required
-        utils = require('./utils');  //utils object and utils.isBrowser provided in db.nrama.js
+        utils = require('./utils');  //see above
     */
     
     

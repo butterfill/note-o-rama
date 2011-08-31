@@ -17,7 +17,7 @@
                     <br />
                 {/AUTHOR}
                 {#AUTHOR}
-                    <span>{.}</span>{@sep} and {/sep}
+                    <span class="author_{@idx}{.}{/idx}">{.}</span>{@sep} and {/sep}
                 {/AUTHOR}
                 <div class="updated">Updated <abbr class="updated_time _timeago" title="{updated_time}">{updated_time}</abbr>.</div>
                 <div class="page_id"><abbr class="page_id">{page_id}</abbr></div>
