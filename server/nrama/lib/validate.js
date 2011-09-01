@@ -13,12 +13,12 @@ module.exports = function (newDoc, oldDoc, userCtx) {
      * if user_id of a documentcontains @, must be logged in as that user to make changes
      */
     var verify_user = function verify_user(user_id) {
-        if( user_id && user_id.indexOf('@') != -1 ) {
+        if( user_id && user_id[0] != '*' ) {
             if (userCtx.name == null ) {
-                throw({forbidden: 'This user must be logged in to make changes (@ policy).'});
+                throw({forbidden: 'This user must be logged in to make changes (* policy).'});
             }
             if( userCtx.name != user_id ) {
-                throw({forbidden: 'This user cannot make changes to another user\'s documents (@ policy).'});
+                throw({forbidden: 'This user cannot make changes to another user\'s documents (* policy).'});
             }
         }
     }

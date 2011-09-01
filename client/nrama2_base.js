@@ -42,11 +42,10 @@ _nrama_init=function _nrama_init($){
         xdm_url : 'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.html',
         easyXDM_cors_url : 'http://127.0.0.1:5984/easy_xdm/cors/provider.html', //TODO remove -- for old persist
         // -- user identification
-        user_id : 'steve@gmail.com', // nrama.uuid(),
+        user_id : 'steve@gmail.com', // '*'+nrama.uuid(),
         password : 'new',   //TODO think of clever way to store this
         me_only : true,    //show only my notes and quotes
         // -- quotes & note settings
-        tags : [],  //list of tags (do not use spaces in tags)
         background_color : '#FCF6CF',   //for quotes
         background_color_other : 'rgba(240,240,240,0.5)',   //color for other ppl's notes and quotes (TODO)
         note_background_color : 'rgba(240,240,240,0.9)', 
@@ -344,9 +343,10 @@ _nrama_init=function _nrama_init($){
     nrama.sources = {
         /**
          * @returns the id of a source record for the user and page
+         * @param o{map} should contain user_id and page_id
          */
-        calculate_id : function(user_id, page_id) {
-            return 'source_'+b64_hmac_md5(user_id, page_id);
+        calculate_id : function(o) {
+            return 'source_'+b64_hmac_md5(o.user_id, o.page_id);
         },
         
         /**
@@ -366,7 +366,10 @@ _nrama_init=function _nrama_init($){
                 user_id : nrama.settings.user_id
             };
             source = $.extend(true, defaults, source);
-            source._id = nrama.sources.calculate_id(source.user_id, source.page_id);
+            source._id = nrama.sources.calculate_id({
+                user_id: source.user_id,
+                page_id:source.page_id
+            });
             nrama.persist.update(source, callback);
         },
         
@@ -430,31 +433,49 @@ _nrama_init=function _nrama_init($){
      */
     nrama.quotes = {
         /**
+         * @returns a hash useful for determining whether two quotes are the same
+         *     across different users.
+         */
+        calculate_hash : function(quote) {
+            return b64_hmac_md5(quote.page_id, quote.content);
+        },
+
+        /**
          * @param range is a Rangy range object
          * @returns a nrama quote object.
          */
         create : function create(range) {
-            return {
-                _id : nrama.uuid(),  
+            var new_quote = {
+                _id : 'q_'+nrama.uuid(),  
                 type : 'quote',
                 content : $.trim( range.toString() ),
-                tags : nrama.settings.tags, 
                 background_color : nrama.settings.background_color,
+                url : document.location.href,
+                page_id : nrama.page_id,  
+                page_title : document.title,
                 //the xpointer to the quote (well, it isn't actually an xpointer but  any serialized representation of the raneg)
                 xptr : nrama.serializer.serialize(range),
                 //the name of the method used to seralise
                 xptr_method : nrama.serializer.id,
-                url : document.location.href,
-                page_id : nrama.page_id,  
-                page_title : document.title,
                 page_order : nrama.quotes.calculate_page_order(range),
                 created : new Date().getTime(),
+                updated : new Date().getTime(),
                 user_id : nrama.settings.user_id
-            }
+            };
+            new_quote.hash = nrama.quotes.calculate_hash(new_quote);
+            new_quote.source_id = nrama.sources.calculate_id({
+                user_id : new_quote.user_id,
+                page_id : new_quote.page_id
+            });
+            return new_quote;
         },
         
         save : function(quote, options /*optional*/, callback) {
             //update the source before saving any quotes
+            if( !options || options instanceof Function ) {
+                callback = options;
+                options = {};
+            }
             nrama.sources.update_once(function(error, data) {
                 if( error ) {
                     $.log('error in nrama.quotes.save is due to call to nrama.sources.update_once.')
@@ -645,14 +666,16 @@ _nrama_init=function _nrama_init($){
          * If the quote can be found on the current page, the position of the
          * note will also be set (otherwise it will not).
          * 
-         * @param options{Object} specifies properties for the note, must include quote_id 
+         * @param quote is the nrama quote object associated with this note
          */
-        create : function create(options){
-            var defaults = {
+        create : function create(quote){
+            var new_note = {
                 _id : nrama.uuid(),  
                 type : 'note',
                 content : nrama.settings.note_default_text,
-                tags : nrama.settings.tags, 
+                quote_id : quote._id,
+                quote_hash : quote.hash,    //can attach to the same quote from other users
+                tags : [],                  //will cache the #s to save us parsing text in creating a view
                 background_color : nrama.settings.note_background_color,
                 width : nrama.settings.note_width,
                 url : document.location.href,
@@ -660,11 +683,32 @@ _nrama_init=function _nrama_init($){
                 created : new Date().getTime(),
                 user_id : nrama.settings.user_id
             };
-            var new_note = $.extend({},defaults,options);
+            new_note.source_id = nrama.sources.calculate_id({
+                user_id : new_note.user_id,
+                page_id : new_note.page_id
+            });
             return new_note;
         },
         
+        /**
+         * extract tags from note
+         * losely based on lines 106-7 of https://raw.github.com/bcherry/twitter-text-js/master/twitter-text.js
+         */
+        _hashtag_regex : /(^|[^0-9A-Z&\/\?]+)(#|＃)([0-9A-Z_]*[A-Z_]+[a-z0-9_]*)/gi,
+        get_tags : function(note) {
+            if (!note.content) {
+                return [];
+            }
+            var tags = [];
+            note.content.replace(nrama.notes._hashtag_regex, function(match, before, hash, hashText) {
+                tags.push(hashText);  
+            });
+            return tags;
+        },
+        
         save : function(note, options/*optional*/, callback) {
+            //extract and store the tags
+            note.tags = nrama.notes.get_tags(note);
             //update the source before saving any quotes
             nrama.sources.update_once(function(error, data) {
                 if( error ) {
@@ -980,7 +1024,7 @@ _nrama_init=function _nrama_init($){
                 return;
             }   
             var quote = $(this).data('nrama_quote');
-            var note = nrama.notes.create({quote_id:quote._id});
+            var note = nrama.notes.create(quote);
             nrama.notes.display(note);
         });
         

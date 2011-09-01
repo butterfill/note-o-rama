@@ -1,55 +1,63 @@
-<h1>
-    {author}{?author} : {/author}
-    {?user_id}
-        {user_id}'s sources
-    {:else}
-        everyone's sources
-    {/user_id}
-</h1>
-
-{?sources}
-    <ul class="sources">
-        {#sources page_user_id=user_id}
-            <li class="source">
-                <div class="title-line">
-                    {^page_user_id}
-                        [<a href="{baseURL}/user/{user_id}" class="to_source">{user_id}</a>]
-                    {/page_user_id}
-                    {! TODO : delete page_title !}
-                    <a href="{baseURL}{user_url}/source/{page_id_enc}">{TITLE}{^TITLE}{page_title}{/TITLE}</a>
-                    {! [{_id}] !}
-                    {?YEAR}(<span class="year">{YEAR}</span>){/YEAR}
-                </div>
-                <div class="citation">{>"bibliographic_details.html"/}</div>
-                <div class="url">{url}</div>
-                <div class="updated">Updated <abbr class="updated_time _timeago" title="{updated_time}">{updated_time}</abbr>.</div>
-            </li>
-        {/sources}
-    </ul>
-{:else}
-    {?user_id}
-        <p>{user_id} has no sources yet.</p>
-    {/user_id}
-{/sources}
-
-{! menu !}
-<ul>
-    {?user_id}
-        <li>
-            {?author}
-                See <a href = "{baseURL}{author_url}">everyone's sources</a>
-            {:else}
-                See <a href = "{baseURL}/sources">everyone's sources</a>
-            {/author}
-        </li>
+{>"user_header.html"/}
+{<what}sources{/what}
+<div class="navigation">
+    {?query_user}
+        {?query_author}
+            -- see <a href="{baseURL}{query_author_url}">everyone's sources on {query_author}</a>
+        {:else}
+            -- see <a href="{baseURL}/sources">everyone's sources</a>
+        {/query_author}
     {:else}
         {?userCtx.name}
-            {?author}
-                <li>See <a href="{baseURL}/user/{userCtx.name}{author_url}">your sources</a>.</li>
+            {?query_author}
+                {?sources}
+                    -- see <a href="{baseURL}/users/{userCtx.name|uc}{query_author_url}">your sources on {query_author}</a>
+                {:else}
+                    -- see <a href="{baseURL}/users/{userCtx.name|uc}">all your sources</a>.
+                {/sources}
             {:else}
-                <li>See <a href="{baseURL}/user/{userCtx.name}">your sources</a>.</li>
-            {/author}
+                -- see <a href="{baseURL}/users/{userCtx.name|uc}">all your sources</a>.
+            {/query_author}
         {/userCtx.name}
-    {/user_id}
+    {/query_user}
+</div>
+
+
+
+<h1>
+    {query_author}
+</h1>
+
+<ul class="sources">
+    {#sources}
+        <li class="source">
+            <div class="title-line">
+                <a href="{baseURL}/users/{user_id|uc}/sources/{page_id|uc}">{TITLE}{^TITLE}untitled{/TITLE}</a>
+                {! [{_id}] !}
+                {?YEAR}(<span class="year">{YEAR}</span>){/YEAR}
+                {!
+                    {^query_user}
+                        [<a href="{baseURL}/users/{user_id|uc}" class="to_source">{user_id}</a>
+                    {/query_user}
+                !}
+                
+            </div>
+            <div class="citation">{>"bibliographic_details.html"/}</div>
+        </li>
+    {/sources}
 </ul>
+{^sources}
+    <p>
+        {?query_user}
+            {query_user} has no 
+        {:else}
+            No one has 
+        {/query_user}
+        sources
+        {?query_author}
+            by {query_author}
+        {/query_author}
+    </p>
+{/sources}
+
 

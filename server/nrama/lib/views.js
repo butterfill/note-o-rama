@@ -2,16 +2,17 @@
  * View functions to be exported from the design doc.
  */
 
-// http://localhost:5984/nrama/_design/nrama/_view/all_user_ids
+/**
+ * list all users
+ * http://localhost:5984/nrama/_design/nrama/_view/all_user_ids
+*/ 
 exports.all_user_ids = {
     map : function(doc) {
-        if( doc.type == 'note' || doc.type == 'quote' ) {
-            emit(doc.user_id,1);
+        if( doc.type == 'source' && doc.updated) {
+            emit(doc.user_id, doc.updated);
         }
     },
-    reduce : function(keys, values, rereduce) {
-        return true;
-    }
+    reduce : '_stats'
 };
 
 //used by the bookmarklet client to get all quotes, then all notes.  TODO? remove tyepe?
@@ -38,7 +39,7 @@ exports.userId_source = {
             }
         }
     }
-}
+};
 
 //used to dispaly all sources
 exports.source = {
@@ -49,7 +50,7 @@ exports.source = {
             }
         }
     }
-}
+};
 
 
 //http://localhost:5984/nrama/_design/nrama/_view/pageId_userId?key=["http://en.wikipedia.org/wiki/Komodo_dragons?h=i","steve@gmail.com"]
@@ -71,7 +72,7 @@ exports.author_userId = {
       }
     }
   }
-}
+};
 
 exports.tag_userId = {
   map : function(doc) {
@@ -82,4 +83,27 @@ exports.tag_userId = {
       }
     }
   }
-}
+};
+
+/**
+ * this is a bit wasteful in that emits the quote and the source for each tag.
+ * see http://blog.couchbase.com/what%E2%80%99s-new-apache-couchdb-011-%E2%80%94-part-two-views-joins-redux-raw-collation-speed
+ */
+exports.tags = {
+  map : function(doc) {
+    if( doc.type && doc.type == 'note' ) {
+      var note = doc;
+      if( note.tags ) {
+        if( note.user_id && note.source_id && note.quote_id && note.updated) {
+          for( var idx in note.tags ) {
+            var tag = note.tags[idx];
+            emit([tag,note.user_id,note.updated], null);                  //include the note iteself
+            emit([tag,note.user_id,note.updated], {_id:note.source_id});  //include the source
+            emit([tag,note.user_id,note.updated], {_id:note.quote_id});   //include the quote
+          }
+        }
+      }
+    }
+  },
+  reduce : "_count"
+};

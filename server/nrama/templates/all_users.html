@@ -1,12 +1,12 @@
-<h1>All note-o-rama users</h1>
+<h1>note-o-rama users</h1>
 
-{?users}
-  <ul>
+<ul class="users">
   {#users}
-    <!-- <li><a href="{baseURL}/{id}">{value}</a></li> -->
-    <li>{key} : {value}</li>
-  {/users}
-    </ul>
-  {:else}
-  <p>No users posts</p>
-{/users}
+    <li class="user-line">
+        <h2 class="user-line"><a href="{baseURL}/users/{user_id|uc}" class="user_id">{user_id}</a></h2>
+        <div class='updated-line'>
+            Updated <abbr class="updated_time _timeago" title="{updated_time}">{updated_time}</abbr>.
+        </div>
+    </li>
+    {/users}
+</ul>

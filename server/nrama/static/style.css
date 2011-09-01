@@ -15,6 +15,22 @@
 }
 
 /**
+ * links --- I prefer underline but it's too distracting in this app (lots of links)
+ */
+a, a:visited {
+    text-decoration: none;
+    color : black;
+}
+a:hover {
+    /*border-bottom : 1px dotted rgb(125,125,125);*/
+    text-decoration : underline;
+    background-color : #F2F2F2;
+    text-shadow: 0 0 3px rgb(255,255,255), 0 0 1px rgb(255,255,255);
+}
+
+
+
+/**
  * the logo & login bit, top right
  */
 
@@ -136,22 +152,16 @@ div.spacer {
     padding : 0.5em;
 }
 
-h1 a, a:visited {
-    text-decoration: none;
-    color : black;
-}
-h1 a:hover {
-    border-bottom : 1px dotted rgb(125,125,125);
-}
 
 h1.title-line {
+    padding-top : 1em;
     padding-bottom : 0;
     margin-bottom : 0;
     font-size : 24px;
     font-weight:bold;
 }
 
-h2.user-line {
+h2.user-line {        
     padding-bottom : 0;
     margin-bottom : 0;
     font-size : 18px;
@@ -182,14 +192,14 @@ ul.notes {
 ul.notes._not_user_page {
     margin-bottom : 2em;
 }
-ul.notes._not_user_page li {
+ul.notes._not_user_page li, li.user-line {
     margin-bottom : 1em;
 }
-ul.sources {
+ul.sources, ul.users  {
     -webkit-padding-start : 0px;
     padding-left : 0em;
 }
-li.note, li.add-a-note {
+li.note, li.add-a-note, li.user-line {
     display:block;
 }
 li.source {

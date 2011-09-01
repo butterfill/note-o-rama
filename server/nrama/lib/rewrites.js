@@ -1,9 +1,10 @@
 /**
  * Rewrite settings to be exported from the design doc
  *
- * NB : for nrama, if path includes user info, that detail should be represented as
- *  'user_id'.  Currently this is passed into req.query so that we can recover the
- *  correct path using req.query.user_id.
+ * NB : for nrama, the parameter names matter because req.query is used
+ *      in templating.  Their names must match the urls used to access them,
+ *      e.g. ':user' for something reprenseted in a url as /users/:user
+ *
  */
 
 module.exports = [
@@ -19,17 +20,17 @@ module.exports = [
         } 
     },
     {
-        from : '/user/:user_id',      //all sources for a particular user
+        from : '/users/:user',      //all sources for a particular user
         to : '_list/sources/userId_source',
         query : {
-            end_key: [":user_id"],
-            start_key : [":user_id", {}],
+            end_key: [":user"],
+            start_key : [":user", {}],
             include_docs : 'true',
             descending : 'true'
         } 
     },
     {
-        from : '/author/:author',   //all sources for an author 
+        from : '/authors/:author',   //all sources for an author 
         to : '_list/sources/author_userId',
         query : {
             end_key :  [":author"],
@@ -38,56 +39,63 @@ module.exports = [
             descending : 'true'
         }
     },
+    // TODO /users/:user/authors
     {
-        from : '/user/:user_id/author/:author',    //all sources for an author & user
+        from : '/users/:user/authors/:author',    //all sources for an author & user
         to : '_list/sources/author_userId',
         query : {
-            end_key :  [":author", ":user_id"],
-            start_key : [":author", ":user_id", {}],
+            end_key :  [":author", ":user"],
+            start_key : [":author", ":user", {}],
             include_docs : 'true',
             descending : 'true'
         }
     },
     {
-        from : '/source/:page_id',                  //everyone's notes on a source
+        from : '/sources/:source',                  //everyone's notes on a source
         to : '_list/source/pageId_userId',
         query : {
-            startkey : [":page_id"],
-            endkey : [":page_id",{}],
+            startkey : [":source"],
+            endkey : [":source",{}],
             include_docs : 'true'
         }
     },
     {
-        from : '/user/:user_id/source/:page_id',    //the user's notes on a source
+        from : '/users/:user/sources/:source',    //the user's notes on a source
         to : '_list/source/pageId_userId',
         query : {
-            key : [":page_id",":user_id"],
+            key : [":source",":user"],
             include_docs : 'true'
         }
     },
+    // TODO /tags
     {
-        from : '/tag/:tag',                   //show everything marked with a particular tag
-        to : '_list/quotes/tag_userId',
+        from : '/tags/:tag',                   //show everything marked with a particular tag
+        to : '_list/quotes2/tags',
         query : {
           startkey : [":tag"],
           endkey : [":tag", {}],
-            include_docs : 'true'
+          reduce : 'false',
+          include_docs : 'true'
         }
     },
+    // TODO /users/:user/tags
     {
-        from : '/user/:user/tag/:tag',                 //show everything of a users' marked with a particular tag
-        to : '_list/quotes/tag_userId',
+        from : '/users/:user/tags/:tag',                 //show everything of a users' marked with a particular tag
+        to : '_list/quotes2/tags',
         query : {
-          startkey : [":tag",":user",],
+          startkey : [":tag",":user"],
           endkey : [":tag", ":user", {}],
+          reduce : 'false',
           include_docs : 'true'
         }
     },
     {
-        from: '/all_users',                   //intended as an entry point for search engines : TODO needs updating!
+        from: '/users',                   //list all users; intended as an entry point for search engines : TODO needs updating!
         to: '_list/all_users/all_user_ids',
         method : 'GET',
-        query : { group : 'true' } //for some reason it must be 'true', not true.
+        query : {
+          group : 'true'
+        } 
     },
     
     // -- for the bookmarklet/embeded client

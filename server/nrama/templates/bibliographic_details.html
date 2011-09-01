@@ -1,26 +1,41 @@
-{?AUTHOR}
-    <span class="authors">
-        {#AUTHOR}<a href="{baseURL}{user_url}/author/{.|uc}"
-                    class="author author_{@idx}{.}{/idx}"
-                >{.}</a>{@sep} and {/sep}{/AUTHOR}.
-    </span>
-    <br />
-{/AUTHOR}
-{?JOURNAL}
-    <span class="journal">{JOURNAL}</span>
-    {VOLUME}({NUMBER}).
-    {?PAGES}
-        pp. <span class="PAGES">{PAGES}</span>.
-    {/PAGES}
-{/JOURNAL}
-{?BOOKTITLE}
-    In <span class="booktitle">{BOOKTITLE}</span>
-    {?EDITOR}
-        (eds.) <span class="editor">{EDITOR}</span>.
-    {/EDITOR}
-    <span class="publisher">{PUBLISHER}</span>:
-    <span class="address">{ADDRESS}</span>.
-    {?PAGES}
-        pp. <span class="PAGES">{PAGES}</span>.
-    {/PAGES}
-{/BOOKTITLE}
+<div class="bibliographic-details">
+    {?AUTHOR}
+        <div class="authors">
+            {#AUTHOR}<a href="{baseURL}{query_user_url}/authors/{.|uc}"
+                        class="author author_{@idx}{.}{/idx}"
+                    >{.}</a>{@sep} and {/sep}{/AUTHOR}.
+        </div>
+    {/AUTHOR}
+    {?JOURNAL}
+        <div>
+            <span class="journal">{JOURNAL}</span>
+            {VOLUME}({NUMBER}).
+            {?PAGES}
+                pp. <span class="PAGES">{PAGES}</span>.
+            {/PAGES}
+        </div>
+    {/JOURNAL}
+    {?BOOKTITLE}
+        <div>
+            In <span class="booktitle">{BOOKTITLE}</span>
+            {?EDITOR}
+                (eds.) <span class="editor">{EDITOR}</span>.
+            {/EDITOR}
+            <span class="publisher">{PUBLISHER}</span>:
+            <span class="address">{ADDRESS}</span>.
+            {?PAGES}
+                pp. <span class="PAGES">{PAGES}</span>.
+            {/PAGES}
+        </div>
+    {/BOOKTITLE}
+    {?url}
+        <div>
+            <a href="{url}" target="_blank" class="title">{url}</a>
+        </div>
+    {/url}
+    {?updated_time}
+        <div>
+            Updated <abbr class="_timeago" title="{updated_time}">{updated_time}</abbr>.
+        </div>
+    {/updated_time}
+</div>

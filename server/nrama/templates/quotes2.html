@@ -2,7 +2,7 @@
 {<what}notes{/what}
 <div class="navigation" >
     {?is_users_own_page}
-        -- see <a href="{baseURL}{query_source_url}">everyone's notes on this</a>;
+        -- see <a href="{baseURL}{query_tag_url}{query_source_url}">everyone's notes on this</a>;
     {:else}
         {?userCtx.name}
             {?query_user}
@@ -25,20 +25,24 @@
 </div>
 
 
-<div class="source">
+<h1>
+    {?query_tag}#{query_tag}{/query_tag}
+    {query_author}
+</h1>
 
-    {#source}
-        <h1 class="title-line">
-            {TITLE}{^TITLE}untitled{/TITLE}
-            {?YEAR}(<span class="year">{YEAR}</span>){/YEAR}
-        </h1>
-        <div class="citation">{>"bibliographic_details.html"/}</div>
-    {/source}
+{#sources}
+    <h2 class="title-line">
+        <a href="{baseURL}{query_user_url}/sources/{page_id|uc}">
+        {TITLE}{^TITLE}untitled{/TITLE}
+        </a>
+        {?YEAR}(<span class="year">{YEAR}</span>){/YEAR}
+    </h2>
+    <div class="citation">{>"bibliographic_details.html"/}</div>
     
     <div class='quotes'>
         {?quotes}
             {#quotes}
-                <div class="quote" id="{_id}" >
+                <div class="quote" id="{hash}" >
                     <div class="quote-line">
                         "<span class="quote-content">{content}</span>"
                         {! TODO add-a-note should be possible provided logged in !}
@@ -46,7 +50,10 @@
                             <a class="add-a-note">[+]</a>
                         {:else}
                             {^query_user}
-                                [cited by <span class='quote-user_id'><a href="{baseURL}/users/{user_id|uc}">{user_id}</a></span>]
+                                [cited by
+                                {#users}
+                                    <span class='quote-user_id'><a href="{baseURL}/users/{.|uc}">{.}</a></span>{@sep}, {/sep}
+                                {/users}]
                             {/query_user}
                             {! TODO re-quote should be possible provided logged in 
                                 [&amp;re-quote]
@@ -82,7 +89,7 @@
             {/is_users_own_page}
         {/quotes}
     </div>
-</div>
+{/sources}
 
 <script>
     if( typeof($)!='undefined' ) {

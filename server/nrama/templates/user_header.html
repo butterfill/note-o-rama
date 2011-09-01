@@ -1,0 +1,16 @@
+<h2 class="user-line">
+    <span class="user-name">
+        {?is_users_own_page}
+            <a href="{baseURL}{query_user_url}">Your</a>
+        {:else}
+            {?query_user}
+                <a href="{baseURL}{query_user_url}">{query_user}</a>'s
+            {:else}
+                <a href="{baseURL}/sources">Everyone</a>'s
+            {/query_user}
+        {/is_users_own_page}
+    </span>
+    {+what}
+        things
+    {/what}
+</h2>
