@@ -164,39 +164,20 @@ _nrama_init=function _nrama_init($){
      * wrap_unarray is for undoing the effects of executing callbacks with all parameters
      * collapsed into an array (easyXDM only allows for callbacks with a single parameter).
      */
-    var is_array_like = function(thing) {
-        var verdict = true;
-        $.each(thing, function(key,value) {
-            if( verdict && key != parseInt(key) ) {     //nb don't use strict !== here, keys are strings
-                verdict = false;
-            }
-        });
-        return verdict;
-    }
     var wrap_unarray = function(fn){
         return function(){
-            if( arguments.length != 1 || !is_array_like(arguments[0]) ) {
-                fn.apply(this, arguments);
-            } else {
-                var new_args = [];      //should be an arry, in fact it's an object
-                $.each(arguments[0], function(key,value) {
-                    new_args[key] = value;
-                })
-                fn.apply(this, new_args);
-            }
+            var new_args = _.toArray(arguments[0]);
+            fn.apply(this, new_args);
         }
     };
     var wrap_rpc = function( method ) {
         return function( ) {
-            var new_arguments = [];
-            $.each(arguments, function(idx, arg){
+            var new_arguments = _(arguments).map(function(arg){
                 if( typeof(arg) == 'function' ) {
-                    new_arguments.push( wrap_unarray(arg) );    //wrap because we're putting parameters into array for xdm
-                } else {
-                    new_arguments.push(arg);
+                    return wrap_unarray(arg);    //wrap because we're putting parameters into array for xdm
                 }
+                return arg;
             });
-            //$.log('wrap rpc:'); nrama._debug(new_arguments);
             method.apply(this, new_arguments);  
         }
     }
@@ -1128,17 +1109,3 @@ if( typeof(nrama) == 'undefined' ) {    //ensure nothing happens if nrama is alr
         });
     }
 }
-
-/*
- 
-#simplemodal-overlay {
-    background-color: #000;
-}
-
-#simplemodal-container {
-    background-color:#fff;
-    border: 8px
-    solid #444;
-    padding: 12px;
-}
-*/
