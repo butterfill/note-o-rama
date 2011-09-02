@@ -29,8 +29,11 @@ var _make_query_urls = function( req) {
  *  (combine the two things because we're mainly interested in whether the user can edit)
  */
 var _is_users_own_page = function(req) {
-    return req.client && req.query.user && req.query.user==req.userCtx.name ;
+    return {
+        is_users_own_page : req.client && req.query.user && req.query.user==req.userCtx.name
+    };
 }
+
 
 /**
  *
@@ -38,7 +41,8 @@ var _is_users_own_page = function(req) {
 var make_universal_template_data = function(req) {
     var universal_template_data = _.extend(
         _make_query_urls(req),
-        { is_users_own_page : _is_users_own_page(req) }
+        _is_users_own_page(req),
+        { req_client : req.client }
     );
 
     //TODO remove (for testing only)
@@ -82,14 +86,9 @@ exports.all_users = function (head, req) {
 
 
 /**
- * show sources
- *
- * to show all sources for single user or for all users,
+ * list all sources for single user or for all users
  * works with view userId_source
- *
- * to show sources for an author (either for single user or all users)
- * works with view author_userId
- * 
+ * The sources are listed in the order they were last updated
  */
 exports.sources = function(head, req) {
     start({code: 200, headers: {'Content-Type': 'text/html'}});
@@ -97,8 +96,8 @@ exports.sources = function(head, req) {
     var sources = [];
     var row;
     while( row = getRow() ) {
-        if( row.value || row.doc ) {
-            var thing = row.value || row.doc;
+        if( row.doc ) {
+            var thing = row.doc;
             if( thing.type && thing.type == 'source' ) {
                 if( thing.page_id ) {
                     thing.page_id_enc = encodeURIComponent(thing.page_id);
@@ -120,10 +119,94 @@ exports.sources = function(head, req) {
 };
 
 
+/**
+ * list authors (and their sources)
+ * use with userId_author view
+ *
+ * Here we exploit the fact that the rows are sorted by author.
+ * The query should provide author_index_in_key to specify where in the view-provided
+ *   key an author's name can be found.
+ */
+exports.authors = function (head, req) {
+
+    start({code: 200, headers: {'Content-Type': 'text/html'}});
+
+    var authors = [];   //keys will be authors, values will be a list of sources
+    var author_index_in_key = parseInt( req.query.author_index_in_key );
+
+    var row = getRow();
+    while( row ) {
+        var current_author = row.key[author_index_in_key];
+        author_sources = {
+            author_name : current_author,
+            sources : [row.doc]
+        };
+        row = getRow();
+        while( row && row.key[author_index_in_key] == current_author ) {
+            author_sources.sources.push(row.doc)
+            row = getRow();
+        }
+        authors.push(author_sources);
+    }
+
+    var content = templates.render('authors.html', req, _({
+            authors : authors
+        }).extend( make_universal_template_data(req) )
+    );
+
+    return {title: 'note-o-rama : authors', content: content};
+
+};
 
 /**
- * notes & quotes on a particular source
+ * tag cloud for [all users' | a user's] tags
+ * user with views: tags_all and tags
+ *
+ * the query should include tag_index_in_key which specifies the index of the tag
+ *   in the key provided by the view
+ */
+exports.tags = function(head, req) {
+    start({code: 200, headers: {'Content-Type': 'text/html'}});
+
+    var tag_index_in_key = parseInt( req.query.tag_index_in_key );
+    
+    var tags = [];
+    var row = getRow();
+    while( row ) {
+        tags.push({
+           text : row.key[tag_index_in_key],
+           weight : row.value,
+           url : "/"
+        });
+        row = getRow();
+    }
+    var content = templates.render('tags.html', req, _({
+            tags : tags
+        }).extend( make_universal_template_data(req) )
+    );
+
+    if( req.client ) {
+        window.tags = tags; //todo remove
+        $(document).one('nrama_page_loaded', function(){
+            $('#tag_cloud').jQCloud(tags, {
+                callback : function() {
+                    $('#tag_cloud a').each(function(){
+                        $(this).attr('href', req.userCtx.baseURL + (req.query.user ? '/users/'+encodeURIComponent(req.query.user) : '') + '/tags/'+ $(this).text());
+                    });
+                }
+            });
+        });
+    }
+
+
+    return {title: 'note-o-rama : tags', content: content};
+}
+
+/**
+ * list notes & quotes on a particular source
  * works with view pageId_userId
+ *
+ * todo ? replace this with exports.quotes2
  *
  * e.g.(single user)
  *   http://localhost:5984/nrama/_design/nrama/_rewrite/source?key=["http://en.wikipedia.org/wiki/Komodo_dragons?h=i","steve@gmail.com"]
@@ -148,7 +231,7 @@ exports.source = function(head, req) {
         source = null;
     var row = getRow();
     while( row ) {
-        var thing = row.value || row.doc;
+        var thing = row.doc;
         
         // -- set title &c (only held on quotes, not notes)
         if( !title && thing.page_title ) { title = thing.page_title; }
@@ -316,86 +399,6 @@ exports.source = function(head, req) {
 
 
 
-/**
- * notes & quotes from one or more sources
- * works with views: tags (?others)
- * NB: will not work with views that include docs (must be used with ?include_docs=true)
- *
- * e.g.(single user)
- *   http://localhost:5984/nrama/_design/nrama/_rewrite/source?key=["http://en.wikipedia.org/wiki/Komodo_dragons?h=i","steve@gmail.com"]
- * or using the rewrites for /user/user_id/source/page_id:
- *  http://localhost:5984/nrama/_design/nrama/_rewrite/user/steve@gmail.com/source/http%3A%2F%2Fstackoverflow.com%2Fquestions%2F332872%2Fhow-to-encode-a-url-in-javascript
- * e.g. (all users)
- *  http://localhost:5984/nrama/_design/nrama/_rewrite/source?startkey=[%22http://en.wikipedia.org/wiki/Komodo_dragons?h=i%22,%22steve@gmail.com%22]&endkey=[%22http://en.wikipedia.org/wiki/Komodo_dragons?h=i%22,{}]
- *
- *
- */
-exports.quotes = function(head, req) {
-    start({code: 200, headers: {'Content-Type': 'text/html'}});
-
-    var find_source = {};   //indexed by page_id, the first source we find gets priority
-    var quotes_for_source = {}; //indexed by page_id
-    var find_quote = {};    //indexed by _id
-    var notes_for_quotes = {};
-    var find_note = {}; //indexed by _id
-
-    var row = getRow();
-    while( row ) {
-        var thing = row.doc;        // <-- NB must be used with ?include_docs=true
-        
-        if( thing.type == 'source' ) {
-            var source = thing;
-            if( !find_source[source.page_id] ) {
-                find_source[source.page_id] = source;
-                source.updated_time = new Date(source.updated).toISOString()
-            }
-        }
-        if( thing.type == 'quote' ) {
-            var quote = thing;
-            find_quote[quote._id] = quote;
-            quotes_for_source[quote.page_id] = _(quotes_for_source[quote.page_id]).union([quote]);
-        }
-        if( thing.type == 'note' ) {
-            var note = thing;
-            find_note[note._id] = note;
-            if( !notes_for_quotes[note.quote_id]  ) {
-                notes_for_quotes[note.quote_id] = [];
-            }
-            notes_for_quotes[note.quote_id].push(note);
-        }
-        
-        row = getRow();
-    }
-
-    
-    // -- attach quotes to sources
-    var sources = _(find_source).values();    //this only includes one source per page_id
-    _(sources).each(function(source){
-        source.quotes = quotes_for_source[source.page_id] || [];
-    });
-
-    // -- attach notes to quotes
-    var quotes = _(find_quote).values();
-    _(quotes).each(function(quote) {
-        quote.notes = notes_for_quotes[quote._id] || [];
-    });
-
-    // -- sort quotes by page_order within each source
-    // TODO!
-    
-    
-    var content = templates.render('quotes2.html', req, _({
-            title : 'untitled', //todo
-            sources : sources
-        }).extend( make_universal_template_data(req) )
-    );
-    
-
-    return {title: 'note-o-rama : ', content: content };
-
-}
-
-
 
 
 
@@ -406,8 +409,13 @@ exports.quotes = function(head, req) {
 
 
 /**
- * 
- *
+ * lists quotes organised by source.
+ * can handle one or more sources.
+ * (TODO: eventually) intended for use with
+ *   -  /sources/:source
+ *   -  /users/:user/sources/:source
+ *   - /tags/:tag
+ *   - /users/:user/tags/:tag
  */
 exports.quotes2 = function(head, req) {
     start({code: 200, headers: {'Content-Type': 'text/html'}});

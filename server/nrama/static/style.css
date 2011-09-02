@@ -160,6 +160,13 @@ h1.title-line {
     font-size : 24px;
     font-weight:bold;
 }
+h2.title-line {
+    padding-top : 1em;
+    padding-bottom : 0;
+    margin-bottom : 0;
+    font-size : 18px;
+    font-weight:bold;
+}
 
 h2.user-line {        
     padding-bottom : 0;
@@ -195,7 +202,7 @@ ul.notes._not_user_page {
 ul.notes._not_user_page li, li.user-line {
     margin-bottom : 1em;
 }
-ul.sources, ul.users  {
+ul.sources, ul.users, ul.authors  {
     -webkit-padding-start : 0px;
     padding-left : 0em;
 }
@@ -471,6 +478,76 @@ td.actions .button {
     solid #444;
     padding: 12px;
 }
+
+
+/**
+ * tag cloud 
+ */
+div.jqcloud {
+  font-family: "Helvetica", "Arial", sans-serif;
+  color: #09f;
+  overflow: hidden;
+  position: relative;
+}
+div.jqcloud a {
+  color: inherit;
+  font-size: inherit;
+  text-decoration: none;
+}
+div.jqcloud a:hover {
+  color: #0df;
+}
+div.jqcloud a:hover {
+  color: #0cf;
+}
+div.jqcloud span {
+  padding: 0;
+}
+div.jqcloud span.w10 {
+  font-size: 54px;
+  color: #0cf;
+}
+div.jqcloud span.w9 {
+  font-size: 50px;
+  color: #0cf;
+}
+div.jqcloud span.w8 {
+  font-size: 44px;
+  color: #0cf;
+}
+div.jqcloud span.w7 {
+  font-size: 40px;
+  color: #39d;
+}
+div.jqcloud span.w6 {
+  font-size: 34px;
+  color: #90c5f0;
+}
+div.jqcloud span.w5 {
+  font-size: 30px;
+  color: #90a0dd;
+}
+div.jqcloud span.w4 {
+  font-size: 24px;
+  color: #90c5f0;
+}
+div.jqcloud span.w3 {
+  font-size: 20px;
+  color: #a0ddff;
+}
+div.jqcloud span.w2 {
+  font-size: 14px;
+  color: #99ccee;
+}
+div.jqcloud span.w1 {
+  font-size: 10px;
+  color: #aab5f0;
+}
+
+
+
+
+
 
 /**
  * can go?

@@ -1,32 +1,18 @@
 {>"user_header.html"/}
-{<what}sources{/what}
+{<what}{sources.length} sources{/what}
 <div class="navigation">
     {?query_user}
-        {?query_author}
-            -- see <a href="{baseURL}{query_author_url}">everyone's sources on {query_author}</a>
-        {:else}
-            -- see <a href="{baseURL}/sources">everyone's sources</a>
-        {/query_author}
+        -- see <a href="{baseURL}/sources">everyone's sources</a>{^is_users_own_page};
+        <a href="{baseURL}/users/{userCtx.name|uc}">your sources
+        {/is_users_own_page}
     {:else}
         {?userCtx.name}
-            {?query_author}
-                {?sources}
-                    -- see <a href="{baseURL}/users/{userCtx.name|uc}{query_author_url}">your sources on {query_author}</a>
-                {:else}
-                    -- see <a href="{baseURL}/users/{userCtx.name|uc}">all your sources</a>.
-                {/sources}
-            {:else}
-                -- see <a href="{baseURL}/users/{userCtx.name|uc}">all your sources</a>.
-            {/query_author}
+            -- see <a href="{baseURL}/users/{userCtx.name|uc}">all your sources</a>.
         {/userCtx.name}
     {/query_user}
 </div>
 
 
-
-<h1>
-    {query_author}
-</h1>
 
 <ul class="sources">
     {#sources}

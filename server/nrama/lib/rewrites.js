@@ -20,6 +20,14 @@ module.exports = [
         } 
     },
     {
+        from: '/users',                   //list all users; intended as an entry point for search engines : TODO needs updating!
+        to: '_list/all_users/all_user_ids',
+        method : 'GET',
+        query : {
+          group : 'true'
+        } 
+    },
+    {
         from : '/users/:user',      //all sources for a particular user
         to : '_list/sources/userId_source',
         query : {
@@ -30,24 +38,48 @@ module.exports = [
         } 
     },
     {
-        from : '/authors/:author',   //all sources for an author 
-        to : '_list/sources/author_userId',
+        from : '/authors',
+        to : '_list/authors/author_userId',
         query : {
-            end_key :  [":author"],
-            start_key : [":author", {}],
             include_docs : 'true',
-            descending : 'true'
+            descending : 'false',
+            reduce : 'false',
+            author_index_in_key : '0'
         }
     },
-    // TODO /users/:user/authors
+    {
+        from : '/authors/:author',   //all sources for an author 
+        to : '_list/authors/author_userId',
+        query : {
+            start_key :  [":author"],
+            end_key : [":author", {}],
+            include_docs : 'true',
+            descending : 'false',
+            reduce : 'false',
+            author_index_in_key : '0'
+        }
+    },
+    {
+        from : '/users/:user/authors',              //list a user's authors
+        to : '_list/authors/userId_author',
+        query : {
+            start_key : [":user"],
+            end_key : [":user",{}],
+            reduce : 'false',
+            include_docs : 'true',   //docs are sources 
+            author_index_in_key : '1'
+        }
+    },
     {
         from : '/users/:user/authors/:author',    //all sources for an author & user
-        to : '_list/sources/author_userId',
+        to : '_list/authors/author_userId',
         query : {
-            end_key :  [":author", ":user"],
-            start_key : [":author", ":user", {}],
+            start_key :  [":author", ":user"],
+            end_key : [":author", ":user", {}],
             include_docs : 'true',
-            descending : 'true'
+            descending : 'false',
+            reduce : 'false',
+            author_index_in_key : '0'
         }
     },
     {
@@ -67,35 +99,45 @@ module.exports = [
             include_docs : 'true'
         }
     },
-    // TODO /tags
+    {
+        from : '/tags',                         //all tags, with frequency
+        to : '_list/tags/tags_all',
+        query : {
+            group : 'true',
+            tag_index_in_key : '0'
+        }
+    },
     {
         from : '/tags/:tag',                   //show everything marked with a particular tag
         to : '_list/quotes2/tags',
         query : {
-          startkey : [":tag"],
-          endkey : [":tag", {}],
-          reduce : 'false',
-          include_docs : 'true'
+            endkey : [":tag"],
+            startkey : [":tag", {}],
+            reduce : 'false',
+            descending : 'true',
+            include_docs : 'true'
         }
     },
-    // TODO /users/:user/tags
+    {
+        from : '/users/:user/tags',
+        to : '_list/tags/tags_user',
+        query : {
+            startkey : [":user"],
+            endkey : [":user", {}],
+            group_level : '2',
+            tag_index_in_key : '1'
+        }
+    },
     {
         from : '/users/:user/tags/:tag',                 //show everything of a users' marked with a particular tag
         to : '_list/quotes2/tags',
         query : {
-          startkey : [":tag",":user"],
-          endkey : [":tag", ":user", {}],
+          endkey : [":tag",":user"],
+          startkey : [":tag", ":user", {}],
           reduce : 'false',
+          descending : 'true',
           include_docs : 'true'
         }
-    },
-    {
-        from: '/users',                   //list all users; intended as an entry point for search engines : TODO needs updating!
-        to: '_list/all_users/all_user_ids',
-        method : 'GET',
-        query : {
-          group : 'true'
-        } 
     },
     
     // -- for the bookmarklet/embeded client

@@ -2,16 +2,16 @@
 {<what}notes{/what}
 <div class="navigation" >
     {?is_users_own_page}
-        -- see <a href="{baseURL}{query_tag_url}{query_source_url}">everyone's notes on this</a>;
+        -- see <a href="{baseURL}{query_tag_url}{query_source_url}">everyone's notes {?query_tag}with this tag{/query_tag}{?query_source}on this source{/query_source}</a>;
     {:else}
         {?userCtx.name}
             {?query_user}
-                -- see &amp; edit <a href="{baseURL}/users/{userCtx.name|uc}{query_source_url}{}"> {?query_user}only {/query_user}your notes on this source</a>;
+                -- see &amp; edit <a href="{baseURL}/users/{userCtx.name|uc}{query_source_url}{query_tag_url}"> {?query_user}only {/query_user}your notes {?query_tag}with this tag{/query_tag}{?query_source}on this source{/query_source}</a>;
             {:else}
-                {?quotes}
-                    -- see &amp; edit <a href="{baseURL}/users/{userCtx.name|uc}{query_source_url}"> {?query_user}only {/query_user}your notes on this source</a>;
+                {?sources}
+                    -- see &amp; edit <a href="{baseURL}/users/{userCtx.name|uc}{query_source_url}{query_tag_url}"> {?query_user}only {/query_user}your notes {?query_tag}with this tag{/query_tag}{?query_source}on this source{/query_source}</a>;
                 {:else}
-                {/quotes}
+                {/sources}
             {/query_user}
         {:else}
             {?query_user}
@@ -20,7 +20,10 @@
         {/userCtx.name}
     {/is_users_own_page}
     {?userCtx.name}
-        go to <a href="{baseURL}/users/{userCtx.name|uc}">your sources</a>
+        go to 
+        <a href="{baseURL}/users/{userCtx.name|uc}/tags">your tags</a>, 
+        <a href="{baseURL}/users/{userCtx.name|uc}/authors">authors</a> or
+        <a href="{baseURL}/users/{userCtx.name|uc}">sources</a>
     {/userCtx.name}
 </div>
 

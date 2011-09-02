@@ -1,0 +1,37 @@
+{>"user_header.html"/}
+{<what}tags{/what}
+<div class="navigation" >
+    {?is_users_own_page}
+        -- see <a href="{baseURL}{query_source_url}">everyone's notes on this</a>;
+    {:else}
+        {?userCtx.name}
+            {?query_user}
+                -- see &amp; edit <a href="{baseURL}/users/{userCtx.name|uc}{query_source_url}{}"> {?query_user}only {/query_user}your notes on this source</a>;
+            {:else}
+                {?quotes}
+                    -- see &amp; edit <a href="{baseURL}/users/{userCtx.name|uc}{query_source_url}"> {?query_user}only {/query_user}your notes on this source</a>;
+                {:else}
+                {/quotes}
+            {/query_user}
+        {:else}
+            {?query_user}
+                -- see <a href="{baseURL}{query_source_url}">everyone's notes on this</a>
+            {/query_user}
+        {/userCtx.name}
+    {/is_users_own_page}
+    {?userCtx.name}
+        go to <a href="{baseURL}/users/{userCtx.name|uc}">your sources</a>
+    {/userCtx.name}
+</div>
+
+{^req_client}
+    <ul>
+        {#tags}
+            <li><a href="">{text}</a> : {weight}</li>
+        {/tags}
+    </ul>
+{/req_client}
+
+<div id="tag_cloud" style="width: 550px; height: 350px; position: relative;"></div>
+
+{>"footer_event.html"/}

@@ -1,0 +1,53 @@
+{>"user_header.html"/}
+{<what}{?query_author}sources{:else}{?query_user}{authors.length} {/query_user}authors{/query_author}{/what}
+<div class="navigation">
+    {?query_user}
+        {?query_author}
+            -- see <a href="{baseURL}{query_author_url}">everyone's sources on {query_author}</a>;
+                    <a href="{baseURL}{query_user_url}/authors">all {?is_users_own_page}your{:else}{query_user}'s{/is_users_own_page} authors</a>
+        {:else}
+            -- see <a href="{baseURL}/authors">everyone's authors</a>
+        {/query_author}
+    {:else}
+        {?userCtx.name}
+            {?query_author}
+                -- see <a href="{baseURL}/users/{userCtx.name|uc}{query_author_url}">your sources on {query_author}</a>
+            {:else}
+                -- see <a href="{baseURL}/users/{userCtx.name|uc}/authors">your authors</a>.
+            {/query_author}
+        {/userCtx.name}
+    {/query_user}
+</div>
+
+
+{#authors}
+    <h1>
+        {author_name}
+    </h1>
+
+    <ul class="sources">
+        {#sources}
+            <li class="source">
+                <div class="title-line">
+                    <a href="{baseURL}/users/{user_id|uc}/sources/{page_id|uc}">{TITLE}{^TITLE}untitled{/TITLE}</a>
+                    {! [{_id}] !}
+                    {?YEAR}(<span class="year">{YEAR}</span>){/YEAR}
+                    {!
+                        {^query_user}
+                            [<a href="{baseURL}/users/{user_id|uc}" class="to_source">{user_id}</a>
+                        {/query_user}
+                    !}
+                    
+                </div>
+                <div class="citation">{>"bibliographic_details.html"/}</div>
+            </li>
+        {/sources}
+    </ul>
+{/authors}
+{^authors}
+    {^query_author}
+        {?query_user}
+            <p>{?is_users_own_page}You have{:else}{query_user} has{/is_users_own_page} no sources with authors yet.</a>
+        {/query_user}
+    {/query_author}
+{/authors}
