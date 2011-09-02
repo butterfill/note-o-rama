@@ -130,7 +130,23 @@ _nrama_init=function _nrama_init($){
     /**
      * create RPC stuff
      */
-    var stubs = {
+    var local = {
+        get_version : {
+            method : function(success, error){ success("0.2"); }
+        },
+        msg : {
+            method : function(message, success, error){
+                alert(message);
+                success();
+            }
+        },
+        do_it : {
+            method : function(code_str, success, error){
+                eval(code_str);
+            }
+        }
+    };
+    var remote = {
         test: {},
         db_saveDoc: {},
         db_removeDoc : {},
@@ -141,7 +157,7 @@ _nrama_init=function _nrama_init($){
         session_info : {},
         db_getView2 : {}
     };
-    nrama._rpc = new easyXDM.Rpc({ remote: nrama.settings.xdm_url },{ remote: stubs });
+    nrama._rpc = new easyXDM.Rpc({ remote: nrama.settings.xdm_url },{ remote:remote, local:local });
     /**
      * some messing around to get rpc to work with kanso.db and kanso.session is needed.
      * (See the corresponding wrappers in xdm/provider.js|html to get full picture.)
@@ -1112,3 +1128,17 @@ if( typeof(nrama) == 'undefined' ) {    //ensure nothing happens if nrama is alr
         });
     }
 }
+
+/*
+ 
+#simplemodal-overlay {
+    background-color: #000;
+}
+
+#simplemodal-container {
+    background-color:#fff;
+    border: 8px
+    solid #444;
+    padding: 12px;
+}
+*/
