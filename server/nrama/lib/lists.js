@@ -600,7 +600,7 @@ exports.quotes2 = function(head, req) {
         window.sources = sources;
         window.find_quote = find_quote;
     }
-    var content = templates.render('quotes2.html', req, _({
+    var content = templates.render('quotes.html', req, _({
             sources : sources
         }).extend( make_universal_template_data(req) )
     );
