@@ -4,7 +4,9 @@
 var templates = require('kanso/templates'),
     events = require('kanso/events'),
     db = require('kanso/db'),
-    _ = require('./underscore')._;      //nb this is more uptodate than that incl. with kanso 0.0.7
+    _ = require('./underscore')._,
+    BibtexParser = require('./bibtex').BibtexParser,      //nb this is more uptodate than that incl. with kanso 0.0.7
+    b64_hmac_md5 = require('./md5').b64_hmac_md5;
 
 /**
  * The templates need to know what's in the path of the current url and how to
