@@ -6,7 +6,8 @@ var templates = require('kanso/templates'),
     db = require('kanso/db'),
     _ = require('./underscore')._,
     BibtexParser = require('./bibtex').BibtexParser,      //nb this is more uptodate than that incl. with kanso 0.0.7
-    b64_hmac_md5 = require('./md5').b64_hmac_md5;
+    b64_hmac_md5 = require('./md5').b64_hmac_md5,
+    nrama = require('./nrama2');
 
 /**
  * The templates need to know what's in the path of the current url and how to
@@ -52,6 +53,7 @@ var make_universal_template_data = function(req) {
         window.req = req;
         window.utd = universal_template_data;
         window._ = _;
+        window.nrama = nrama;
     }
     
     return universal_template_data;
