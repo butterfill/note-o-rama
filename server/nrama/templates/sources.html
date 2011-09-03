@@ -18,7 +18,7 @@
     {#sources}
         <li class="source">
             <div class="title-line">
-                <a href="{baseURL}/users/{user_id|uc}/sources/{page_id|uc}">{TITLE}{^TITLE}untitled{/TITLE}</a>
+                <a href="{baseURL}/users/{user_id|uc}/sources/{page_id|uc}">{TITLE}{page_title}{^TITLE}{^page_title}untitled{/page_title}{/TITLE}</a>
                 {! [{_id}] !}
                 {?YEAR}(<span class="year">{YEAR}</span>){/YEAR}
                 {!

@@ -5,7 +5,7 @@
 
 {#sources}    
     <h1 class="title-line">
-        <a href="{baseURL}{query_user_url}/sources/{page_id|uc}" class="title">{TITLE}{^TITLE}untitled{/TITLE}</a>
+        <a href="{baseURL}{query_user_url}/sources/{page_id|uc}" class="title">{TITLE}{page_title}{^TITLE}{^page_title}untitled{/page_title}{/TITLE}</a>
         {?YEAR}(<span class="year">{YEAR}</span>){/YEAR}
     </h1>
     <div class="citation">{>"bibliographic_details.html"/}</div>

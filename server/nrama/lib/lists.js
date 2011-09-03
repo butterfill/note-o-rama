@@ -411,6 +411,9 @@ exports.source = function(head, req) {
 /**
  * lists quotes organised by source.
  * can handle one or more sources.
+ *
+ * TODO: note creation not working (will be rewritten anyway)
+ * 
  * (TODO: eventually) intended for use with
  *   -  /sources/:source
  *   -  /users/:user/sources/:source
@@ -421,7 +424,6 @@ exports.quotes2 = function(head, req) {
     start({code: 200, headers: {'Content-Type': 'text/html'}});
 
     var find_source = {};   //indexed by page_id, the first source we find gets priority
-    var quotes_for_source = {}; //indexed by page_id
     var find_quote = {};    //indexed by quote_hash 
     var notes_for_quotes = {};
     var find_note = {}; //indexed by _id
@@ -443,7 +445,6 @@ exports.quotes2 = function(head, req) {
             var quote = thing;
             if( !find_quote[quote.hash] ) {
                 find_quote[quote.hash] = quote;
-                quotes_for_source[quote.page_id] = _(quotes_for_source[quote.page_id]).union([quote]);
                 quote.users = [];   //nb should not persist this property (quotes are not updated)
             }
             find_quote[quote.hash].users.push(quote.user_id);
@@ -464,13 +465,13 @@ exports.quotes2 = function(head, req) {
     var quotes = _(find_quote).values();
     _(quotes).each(function(quote) {
         quote.notes = notes_for_quotes[quote.hash] || [];
+        var source = find_source[quote.page_id];
+        if( !source.quotes ) {
+            source.quotes = [];
+        }
+        source.quotes.push(quote);
     });
-
-    // -- attach quotes to sources
-    var sources = _(find_source).values();    //this only includes one source per page_id
-    _(sources).each(function(source){
-        source.quotes = quotes_for_source[source.page_id] || [];
-    });
+    var sources = _(find_source).values();
 
     // -- for each source, sort its quotes by page_order
     var array_comparitor = function(a,b){
@@ -591,7 +592,12 @@ exports.quotes2 = function(head, req) {
             });
         });
     }
-       
+    
+    //TODO remove !
+    if( req.client ) {
+        window.sources = sources;
+        window.find_quote = find_quote;
+    }
     var content = templates.render('quotes2.html', req, _({
             sources : sources
         }).extend( make_universal_template_data(req) )

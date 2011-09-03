@@ -29,7 +29,7 @@
 
     {#source}
         <h1 class="title-line">
-            {TITLE}{^TITLE}untitled{/TITLE}
+            {TITLE}{page_title}{^TITLE}{^page_title}untitled{/page_title}{/TITLE}
             {?YEAR}(<span class="year">{YEAR}</span>){/YEAR}
         </h1>
         <div class="citation">{>"bibliographic_details.html"/}</div>
