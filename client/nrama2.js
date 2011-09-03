@@ -9,7 +9,7 @@
  * For dependencies see lib.js
  *
  * To run as bookmarklet (change url; delete the 'now' param if not in developent mode):
- *   javascript:(function(){_nrama_bkmklt=true;document.body.appendChild(document.createElement('script')).src='http://localhost:8888/nrama2_test/nrama2_base.js?now=new Date().getTime()'; })();
+ *   javascript:(function(){_nrama_bkmklt=true;document.body.appendChild(document.createElement('script')).src='http://localhost:8888/nrama2_test/nrama2.js?now=new Date().getTime()'; })();
  *
  * To embed in page:
  *   <script src='lib.min.js" ></script>
@@ -41,7 +41,7 @@
     var _make_debug = function(settings, window) {
         var _debug = function(){};    //does nothing if not debugging
         if( settings.debug && typeof window !== 'undefined' ) {
-            window.$=jQuery;                        //<-- nb breaks noConflict
+            //window.$=jQuery;                        //<-- nb breaks noConflict
             _debug = function _debug(map_or_array){
                 $.each(map_or_array, function(key,val){
                       if( isFinite(key) ) {
@@ -1136,7 +1136,12 @@
      */
     if( typeof exports !== 'undefined' ) {    //exports undefined means nrama is already loaded -- bookmarklet may be called more than once)
         exports.nrama = {};
+
+        console.log('$ '+typeof $);
+        console.log('jQuery '+typeof jQuery);
+        console.log('_nrama_lib_executed  '+typeof _nrama_lib_executed );
         
+
         if( typeof _nrama_bkmklt === 'undefined' && typeof require !== 'undefined' ) {
             //initialise as commonJS module
             //TODO !!!
@@ -1145,36 +1150,39 @@
         } else {
             if( typeof _nrama_bkmklt === 'undefined' || !_nrama_bkmklt ) {
                 //run as embedded <script> (_nrama_bkmklt must be defined by the boomarklet code)
-                console.log('<scrfipt>');
-                var jQuery = $.noConflict();
                 _nrama_init(exports.nrama, jQuery);
             } else {
-                console.log('bkmrklt');
                 // run in bookmarklet mode : load libraries & only start work after they loaded
                 // thank you http://stackoverflow.com/questions/756382/bookmarklet-wait-until-javascript-is-loaded
-                nrama.loadScript = function loadScript(url, callback) {
-                    var head = document.getElementsByTagName("head")[0];
-                    var script = document.createElement("script");
+                //from jQuery ajaxTransport
+                var loadScript2 = function(url, callback) {
+                    var head = document.head || document.getElementsByTagName( "head" )[0] || document.documentElement;
+                    var script = document.createElement( "script" );
+                    //script.charset = set this?$
                     script.src = url;
-            
                     // Attach handlers for all browsers
-                    var done = false;
-                    script.onload = script.onreadystatechange = function() {
-                        if( !done && ( !this.readyState 
-                                                || this.readyState == "loaded" 
-                                                || this.readyState == "complete") ) {
-                            done = true;
-                            callback();
-        
+                    script.onload = script.onreadystatechange = function( _, isAbort ) {
+                        if ( isAbort || !script.readyState || /loaded|complete/.test( script.readyState ) ) {
                             // Handle memory leak in IE
                             script.onload = script.onreadystatechange = null;
-                            head.removeChild( script );
+                            // Remove the script
+                            if ( head && script.parentNode ) {
+                                head.removeChild( script );
+                            }
+                            // Dereference the script
+                            script = undefined;
+                            if ( !isAbort ) {
+                                callback( 200, "success" );
+                            }
                         }
                     };
-                    head.appendChild(script);
+                    // Use insertBefore instead of appendChild  to circumvent an IE6 bug.
+                    // This arises when a base node is used (#2709 and #4378).
+                    //document.body.appendChild(script);
+                    head.insertBefore( script, head.firstChild );
                 }
-                nrama.loadScript(_NRAMA_LIB_URL, function() {
-                    var jQuery = $.noConflict();
+                loadScript2(_NRAMA_LIB_URL, function() {
+
                     _nrama_init(exports.nrama, jQuery);
                 });
             }

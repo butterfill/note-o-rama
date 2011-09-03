@@ -1,4 +1,4 @@
-/**
+﻿/**
  * cut and pased all dependencies into this file, including their licenses.
  * (for easy loading in bookmarklet mode)
  *
@@ -6718,3 +6718,5 @@ function bibtex_js_draw() {
 		}
 	};
 })(jQuery);
+
+_nrama_lib_executed = true;
