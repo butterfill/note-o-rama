@@ -28,7 +28,17 @@ module.exports = [
         } 
     },
     {
-        from : '/users/:user',      //all sources for a particular user
+        from : '/users/:user',      //currently all sources for a particular user, probably modified in future
+        to : '_list/sources/userId_source',
+        query : {
+            end_key: [":user"],
+            start_key : [":user", {}],
+            include_docs : 'true',
+            descending : 'true'
+        } 
+    },
+    {
+        from : '/users/:user/sources',      //currently all sources for a particular user, probably modified in future
         to : '_list/sources/userId_source',
         query : {
             end_key: [":user"],

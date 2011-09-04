@@ -36,6 +36,69 @@
     var _NRAMA_LIB_URL = "http://localhost:8888/nrama2_test/lib.min.js"; //where to load lib from (for bookmarklet only)
 
     /**
+     * these are exactly the settings for embedded mode (bkmrklt or <script>),
+     * and they are the basis for server mode (some are overriden)
+     */
+    var _make_settings = function(){
+        var settings = {
+            // -- internals
+            is_embedded : true,     //set to false when being used on the server
+            debug : true,
+            server_url : 'http://127.0.0.1:5984/',  //must include trailing slash
+            //server_url : 'http://noteorama.iriscouch.com/',
+            db_name : 'nrama',
+            xdm_url : 'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.html',
+            // -- user identification
+            user_id : 'steve@gmail.com', // '*'+nrama.uuid(),
+            password : 'new',   //TODO think of clever way to store this
+            me_only : true,    //show only my notes and quotes
+            // -- quotes & note settings
+            note_default_text : 'type now',
+            background_color : '#FCF6CF',   //for quotes
+            background_color_other : 'rgba(240,240,240,0.5)',   //color for other ppl's notes and quotes (TODO)
+            note_background_color : 'rgba(240,240,240,0.9)', 
+            persist_started_color : '#FFBF00',  //#FFBF00=orange
+            note_width : 150, //pixels
+            max_quote_length : 5000,  //useful because prevents
+            // -- styling
+            note_style : {
+                'border' : '1px solid',
+                'background-color' : 'rgb(229,229,299)',    //default in case options.note_background_color fails
+                'border-color' : '#CDC0B0',
+                'box-shadow' : '0 0 8px rgba(0,0,0,0.2)',
+                '-moz-box-shadow' : '0 0 8px rgba(0,0,0,0.2)',
+                '-webkit-box-shadow' : '0 0 8px rgba(0,0,0,0.2)',
+                'padding' : '3px',
+                'cursor' : 'move',
+                'height' : 'auto',
+                'z-index' : '9998' //try to ensure always on top
+            },
+            note_inner_style : {},
+            note_editor_style : {
+                'wrap' : 'soft',
+                'padding-left' : '1px',
+                'padding-top' : '1px',
+                'padding-right' : '0px',
+                'padding-bottom' : '0px',
+                'border' : 'none',
+                'resize' : 'none',      //remove draggable resize handle in chrome
+                'line-height' : '1.3em',
+                'background-color' : 'inherit',
+                'font-family' : 'Palatino, serif',
+                'font-size' : '12px',
+                'color' : 'rgb(0,0,0)',
+                'text-shadow' : '1px 1px 20px rgba(250,250,250,1), -1px -1px 20px rgba(250,250,250,1), 0 0 1px rgba(250,250,250,1)',
+                '-moz-text-shadow' : '1px 1px 20px rgba(250,250,250,1), -1px -1px 20px rgba(250,250,250,1), 0 0 1px rgba(250,250,250,1)',
+                '-webkit-text-shadow' : '1px 1px 20px rgba(250,250,250,1), -1px -1px 20px rgba(250,250,250,1), 0 0 1px rgba(250,250,250,1)'
+            }
+        };
+        settings.note_style["width"] = settings.note_width+"px";
+        settings.note_editor_style['width'] = settings.note_width+"px";
+        return settings;
+    };
+        
+
+    /**
      * caution : if settings.debug, this will add to window (if defined)
      */
     var _make_debug = function(settings, window) {
@@ -194,62 +257,74 @@
      * for each page_id, each user should create a source.  Minimally this
      *  need only contain the page_id.  But it should ideally contain a title
      *  and, where possible, authors &c.
-     *  depends : 
+     *  @param lib{map} optionally provides dependencies (if these are not global): 
      *    - b64_hmac_md5    from md5.js 
-     *    - async           from async.js (caolan)
      *    - BibtexParser    from bibtex.js
      *    - $               from jQuery
      *    -  _              from underscore.js
      */
-    var _make_sources = function(persist, _debug) {
+    var _make_sources = function(settings, persist, _debug, lib/*optional*/) {
         var sources = {};
+        sources.b64_hmac_md5    = lib ? lib.b64_hmac_md5 : window.b64_hmac_md5;
+        sources.BibtexParser    = lib ? lib.BibtexParser : window.BibtexParser;
+        sources.$               = lib ? lib.$ : window.$;
+        sources._               = lib ? lib._ : window._;
+        
         /**
          * @returns the id of a source record for the user and page
          * @param o{map} should contain user_id and page_id
          */
         sources.calculate_id = function(o) {
-            return 'source_'+b64_hmac_md5(o.user_id, o.page_id);
+            return 'source_'+sources.b64_hmac_md5(o.user_id, o.page_id);
         };
         
         /**
-         * @param attrs must contain page_id & user_id ; should also
-         * contain url and either (page_title or TITLE)
+         * @param attrs must contain page_id & user_id ; can be note or quote
          */
         sources.create = function(attrs) {
             var defaults = {
-                type : 'source',
-                tags : []     //the server's update will append, not remove
+                tags : []     //the persist.update will append, not remove tags
             };
-            var source = $.extend(true, defaults, attrs);
-            source._id = source._id || sources.calculate_id(source);
+            if( settings.is_embedded ) {
+                defaults.page_title = document.title;
+                defaults.url = document.location.href;
+            }
+            var source = sources.$.extend(true, defaults, attrs);
+            source._id = sources.calculate_id(source);  //nb must overwrite _id in case called with note or quote object!
+            source.type = 'source';
             return source;
         }
+        
         /**
          * Create or update a source.
-         * @param source must contain TITLE, url, page_id & user_id if update
-         * is being called to create a new source
-         * caution: source will be modified in place.
+         * @param source must contain (TITLE or page_title), url, page_id
+         *      & user_id if update is being called to create a new source
+         * Can be called with either a source or a note or a quote
+         * Caution: if called with source, source will be modified in place.
          */
-        sources.update = function(source, callback) {
+        sources.update = function(thing, callback) {
+            var source = ( thing.type == 'source' ? thing : sources.create(thing) );
             persist.update(source, callback);
         }
 
         /**
          * call update once per source only (but if it fails, will repeat next
          * time it is called)
+         * can be called with either a source or a note or a quote 
          */
         var _update_memo = [];
-        sources.update_once = function(source, callback) {
-            var already_done = ( _.indexOf(_update_memo, source._id) != -1 );
+        sources.update_once = function(thing, callback) {
+            var source_id = ( thing.type == 'source' ? thing._id : thing.source_id );
+            var already_done = ( sources._.indexOf(_update_memo, source_id) != -1 );
             if( already_done  ) {
                 callback(null, 'already done');
                 return;
-            } 
-            sources.update(source, function(error, data){
+            }
+            sources.update(thing, function(error, data){
                 if(error){
                     callback(error,data);
                 } else {
-                    _update_memo.push(source._id);
+                    _update_memo.push(source_id);
                     callback(error, data);
                 }
             });
@@ -266,28 +341,30 @@
         };
         /**
          * given a string, attempts to parse it as bibtex and update the source
-         * with the results
+         * with the results.
+         * @param thing can be a source, quote or note
          * E.g.
          *   b='@incollection{Baillargeon:1995lu,	Address = {Oxford},	Author = {Baillargeon, Ren{\'e}e and Kotovsky, Laura and Needham, Amy},	Booktitle = {Causal cognition. A multidisciplinary debate},	Date-Added = {2010-08-04 17:40:21 +0100},	Date-Modified = {2010-08-04 17:40:38 +0100},	Editor = {Sperber, Dan and Premack, David},	Pages = {79-115},	Publisher = {Clarendon},	Title = {The Acquisition of Physical Knowledge In Infancy},	Year = {1995}}'
          */
-        sources.update_from_bibtex = function(bib_str, callback) {
-            var parser = new BibtexParser();
+        sources.update_from_bibtex = function(bib_str, thing, callback) {
+            var parser = new sources.BibtexParser();
             parser.setInput(bib_str);
             parser.bibtex();
             var results = parser.getEntries();
-            if( _.size(results) != 1 ) {
-                callback('nrama.sources.parse_bibtex: input contained '+_.size(results)+' entries ('+bib_str+')');
+            if( sources._.size(results) != 1 ) {
+                callback('nrama.sources.parse_bibtex: input contained '+sources._.size(results)+' entries ('+bib_str+')');
                 return;
             }
-            var entry = _.toArray(results)[0];
+            var entry = sources._.toArray(results)[0];
             if( entry.AUTHOR ) {
                 entry.AUTHOR_TEXT = entry.AUTHOR;
                 entry.AUTHOR = _parse_authors(entry.AUTHOR_TEXT);
             }
             entry.bibtex = bib_str;
-            sources.update(entry, callback);
+            var source = sources.create(thing);
+            source = sources.$.extend(true, {}, source, entry);
+            sources.update(source, callback);
         };
-        
         return sources;
     };
     
@@ -295,7 +372,7 @@
      *  @param quotes can be set to null; if provided it is used to position noes
      */
     var _make_notes = function(settings, uuid, persist,
-                               sources, quotes, finder) {
+                               sources, quotes, _debug) {
         var notes = {};
         /**
          * Create a new note for a specified quote.
@@ -312,7 +389,7 @@
                 width : settings.note_width,
                 page_id : quote.page_id,  
                 created : new Date().getTime(),
-                user_id : settings.user_id
+                user_id : quote.user_id
             };
             new_note.source_id = sources.calculate_id({
                 user_id : new_note.user_id,
@@ -342,8 +419,7 @@
             //extract and store the tags
             note.tags = notes.get_tags(note);
             //update the source before saving any quotes
-            var source = finder.find_source(note);
-            sources.update_once(source, function(error, data) {
+            sources.update_once(note, function(error, data) {
                 if( error ) {
                     $.log('error in nrama_notes.save, due to call to nrama_sources.update_once.')
                     callback(error, data);
@@ -543,8 +619,8 @@
                     _debug({msg:'nrama_notes.remove --- error removing note', error:error});
                 } else {
                     $.log("nrama_notes.remove deleted note "+note_id+" from server.");
-                    $note.hide('puff',{},300+Math.floor(Math.random()*600), function(){
-                        $note.remove();
+                    $('#'+note_id).hide('puff',{},300+Math.floor(Math.random()*600), function(){
+                        $('#'+note_id).remove();
                     });
                 }
             });
@@ -598,61 +674,7 @@
             return  'N'+uuid().replace(/-/g,'');
         };
     
-        nrama.settings = {
-            // -- internals
-            is_embedded : true,     //set to false when being used on the server
-            debug : true,
-            server_url : 'http://127.0.0.1:5984/',  //must include trailing slash
-            //server_url : 'http://noteorama.iriscouch.com/',
-            db_name : 'nrama',
-            xdm_url : 'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.html',
-            // -- user identification
-            user_id : 'steve@gmail.com', // '*'+nrama.uuid(),
-            password : 'new',   //TODO think of clever way to store this
-            me_only : true,    //show only my notes and quotes
-            // -- quotes & note settings
-            note_default_text : 'type now',
-            background_color : '#FCF6CF',   //for quotes
-            background_color_other : 'rgba(240,240,240,0.5)',   //color for other ppl's notes and quotes (TODO)
-            note_background_color : 'rgba(240,240,240,0.9)', 
-            persist_started_color : '#FFBF00',  //#FFBF00=orange
-            note_width : 150, //pixels
-            max_quote_length : 5000,  //useful because prevents
-            // -- styling
-            note_style : {
-                'border' : '1px solid',
-                'background-color' : 'rgb(229,229,299)',    //default in case options.note_background_color fails
-                'border-color' : '#CDC0B0',
-                'box-shadow' : '0 0 8px rgba(0,0,0,0.2)',
-                '-moz-box-shadow' : '0 0 8px rgba(0,0,0,0.2)',
-                '-webkit-box-shadow' : '0 0 8px rgba(0,0,0,0.2)',
-                'padding' : '3px',
-                'cursor' : 'move',
-                'height' : 'auto',
-                'z-index' : '9998' //try to ensure always on top
-            },
-            note_inner_style : {},
-            note_editor_style : {
-                'wrap' : 'soft',
-                'padding-left' : '1px',
-                'padding-top' : '1px',
-                'padding-right' : '0px',
-                'padding-bottom' : '0px',
-                'border' : 'none',
-                'resize' : 'none',      //remove draggable resize handle in chrome
-                'line-height' : '1.3em',
-                'background-color' : 'inherit',
-                'font-family' : 'Palatino, serif',
-                'font-size' : '12px',
-                'color' : 'rgb(0,0,0)',
-                'text-shadow' : '1px 1px 20px rgba(250,250,250,1), -1px -1px 20px rgba(250,250,250,1), 0 0 1px rgba(250,250,250,1)',
-                '-moz-text-shadow' : '1px 1px 20px rgba(250,250,250,1), -1px -1px 20px rgba(250,250,250,1), 0 0 1px rgba(250,250,250,1)',
-                '-webkit-text-shadow' : '1px 1px 20px rgba(250,250,250,1), -1px -1px 20px rgba(250,250,250,1), 0 0 1px rgba(250,250,250,1)'
-            }
-        };
-        nrama.settings.note_style["width"] = nrama.settings.note_width+"px";
-        nrama.settings.note_editor_style['width'] = nrama.settings.note_width+"px";
-        
+        nrama.settings = _make_settings();
         nrama._debug = _make_debug(nrama.settings, window);
         nrama.log = _make_logging(nrama.settings, $);
 
@@ -706,7 +728,7 @@
         };
         var _wrap_rpc = function( method ) {
             return function( ) {
-                var new_arguments = _(arguments).map(function(arg){
+                var new_arguments = _.map(arguments, function(arg){
                     if( typeof(arg) == 'function' ) {
                         return _wrap_unarray(arg);    //wrap because we're putting parameters into array for xdm
                     }
@@ -755,7 +777,7 @@
         // the serializer to be used in creating new quotes
         nrama.serializer = nrama.serializers['rangy_1_2'];
     
-        nrama.sources = _make_sources(nrama.persist, nrama._debug);
+        nrama.sources = _make_sources(nrama.settings, nrama.persist, nrama._debug);
 
         /**
          * depends on :
@@ -812,8 +834,7 @@
                     options = {};
                 }
                 //update the source before saving any quotes
-                var source = nrama.finder.find_source(quote);
-                nrama.sources.update_once(source, function(error, data) {
+                nrama.sources.update_once(quote, function(error, data) {
                     if( error ) {
                         $.log('error in nrama.quotes.save is due to call to nrama.sources.update_once.')
                         callback(error, data);
@@ -894,8 +915,6 @@
                 nrama.persist.rm(quote, function(error, data){
                     if( !error ) {
                         nrama.quotes.undisplay(quote);
-                    } else {
-                        nrama._debug({msg:'nrama.quotes.remove: passing error to debug',error:error});
                     }
                 });
             },
@@ -990,13 +1009,8 @@
             }
         }
         
-        /**
-         * provides methods for, e.g., getting sources given a note
-         */
-        nrama.finder = {};  //can't define until page has loaded
-        
         nrama.notes = _make_notes(nrama.settings, nrama.uuid, nrama.persist,
-                                  nrama.sources, nrama.quotes, nrama.finder);
+                                  nrama.sources, nrama.quotes, nrama._debug);
 
         /**
          * main setup:
@@ -1014,16 +1028,6 @@
              */
             nrama.page_id = window.location.protocol+"//"+window.location.host+window.location.pathname;  //the url with no ?query or #anchor details
             
-            nrama.finder.find_source = function(thing) {
-                //in embedded mode there is only one source (but we re-create it in case settings changed)
-                return nrama.sources.create({
-                    page_title : document.title,
-                    url : document.location.href,
-                    page_id : nrama.page_id,
-                    user_id : nrama.settings.user_id
-                });
-            }
-
             /**
              * this is the node within which notes and quotes are possible and
              * relative to which their locations are defined.
@@ -1043,7 +1047,7 @@
             
             // --- configure events ---
             
-            //based on underscore but can't use their throttle as it calls fn AFTER timout
+            //throttle2 is based on underscore but can't use their throttle as it calls fn AFTER timout
             var throttle2 = function(func) {
                 var timeout;
                 return function() {
@@ -1125,9 +1129,7 @@
                         });
                         return;
                     }
-                    $.log("nrama start deleting quote "+quote._id);
                     nrama.quotes.remove(quote);
-                    return;
                 }
             });
         
@@ -1160,6 +1162,7 @@
         if( typeof _nrama_bkmklt === 'undefined' && typeof require !== 'undefined' ) {
             //initialise as commonJS module
             //in this mode, we just provide functions to build the nrama object
+            exports._make_settings = _make_settings;
             exports._make_logging = _make_logging;
             exports._make_debug = _make_debug;
             exports._make_persist = _make_persist;
@@ -1169,7 +1172,7 @@
             //_nrama_init_commonjs(exports.nrama, jQuery);
         } else {
             if( typeof _nrama_bkmklt === 'undefined' || !_nrama_bkmklt ) {
-                //run as embedded <script> (_nrama_bkmklt must be defined by the boomarklet code)
+                //run as embedded <script> 
                 _nrama_init(exports, jQuery);
             } else {
                 // run in bookmarklet mode : load libraries & only start work after they loaded

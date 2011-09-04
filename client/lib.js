@@ -15,7 +15,7 @@
  *  md5.js (http://pajhome.org.uk/crypt/md5/md5.html)
  *  bibtex_js.js (http://code.google.com/p/bibtex-js/source/browse/trunk/src/bibtex_js.js)
  *  underscore.js             (12kb)
- *  async.js                  (1.7kb) (https://github.com/caolan/async)
+ *  !!! async.js                  (1.7kb) (https://github.com/caolan/async) TODO REMOVE !!!
  *  jquery.simplemodal.js     (12kb) MIT & GPL
  */
 

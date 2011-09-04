@@ -82,8 +82,8 @@ var bindSessionControls = function () {
                 '<div class="errors"></div>' +
             '</div>' +
             '<div class="actions">' +
-                '<input type="submit" id="id_login" value="Login" />' +
                 '<input type="button" id="id_cancel" value="Cancel" />' +
+                '<input type="submit" id="id_login" value="Login" />' +
             '</div>' +
         '</form>');
         $('#id_cancel', div).click(function () {
@@ -117,7 +117,8 @@ var bindSessionControls = function () {
     });
     $('#session .signup a').click(function (ev) {
         ev.preventDefault();
-        var div = $('<div><h2>Create account</h2></div>');
+        var div = $('<div><h2>Create an account</h2></div>');
+        div.append("<p>It's free.</p>");
         div.append('<form id="signup_form" action="/_session" method="POST">' +
             '<div class="general_errors"></div>' +
             '<div class="username field">' +
@@ -131,8 +132,8 @@ var bindSessionControls = function () {
                 '<div class="errors"></div>' +
             '</div>' +
             '<div class="actions">' +
-                '<input type="submit" id="id_create" value="Create" />' +
                 '<input type="button" id="id_cancel" value="Cancel" />' +
+                '<input type="submit" id="id_create" value="Create" />' +
             '</div>' +
         '</form>');
         $('#id_cancel', div).click(function () {
@@ -152,6 +153,9 @@ var bindSessionControls = function () {
             if (username && password) {
                 session.signup(username, password, function (err) {
                     $('.general_errors', div).text(err ? err.toString(): '');
+                    if( err.status === 409 || err.error === 'conflict' ) {
+                        $('.general_errors', div).text('That username is already taken');
+                    }
                     if (!err) {
                         session.login(username, password, function (err) {
                             $('.general_errors', div).text(err ? err.toString(): '');

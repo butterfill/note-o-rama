@@ -335,7 +335,7 @@ db = {};
             expect_json:false               //as of couchdb 1.1.0, updates seem to defy attempts to alter headers & return text/html header.
         };
         exports.request(req, callback);
-    }
+    };
 
     
     /**

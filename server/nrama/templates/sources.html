@@ -1,15 +1,22 @@
 {>"user_header.html"/}
 {<what}{sources.length} sources{/what}
 <div class="navigation">
-    {?query_user}
-        -- see <a href="{baseURL}/sources">everyone's sources</a>{^is_users_own_page};
-        <a href="{baseURL}/users/{userCtx.name|uc}">your sources
+    --
+    {^is_users_own_page}
+        {?query_user}
+            see 
+            <a href="{baseURL}{query_user_url}/authors">{query_user}'s authors</a> or
+            <a href="{baseURL}{query_user_url}/tags">tags</a>{?userCtx.name}; <br />-- {/userCtx.name}
+        {/query_user}
+    {/is_users_own_page}
+    {?userCtx.name}
+        go to
+        {^is_users_own_page}
+            <a href="{baseURL}/users/{userCtx.name|uc}/sources">your sources</a>,
         {/is_users_own_page}
-    {:else}
-        {?userCtx.name}
-            -- see <a href="{baseURL}/users/{userCtx.name|uc}">all your sources</a>.
-        {/userCtx.name}
-    {/query_user}
+        <a href="{baseURL}/users/{userCtx.name|uc}/authors">{?is_users_own_page}your {/is_users_own_page}authors</a> or
+        <a href="{baseURL}/users/{userCtx.name|uc}/tags">tags</a>
+    {/userCtx.name}
 </div>
 
 
@@ -18,7 +25,7 @@
     {#sources}
         <li class="source">
             <div class="title-line">
-                <a href="{baseURL}/users/{user_id|uc}/sources/{page_id|uc}">{TITLE}{page_title}{^TITLE}{^page_title}untitled{/page_title}{/TITLE}</a>
+                <a href="{baseURL}/users/{user_id|uc}/sources/{page_id|uc}">{TITLE}{^TITLE}{page_title}{^page_title}untitled{/page_title}{/TITLE}</a>
                 {! [{_id}] !}
                 {?YEAR}(<span class="year">{YEAR}</span>){/YEAR}
                 {!

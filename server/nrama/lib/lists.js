@@ -211,10 +211,9 @@ exports.tags = function(head, req) {
 /**
  * lists quotes organised by source.
  * can handle one or more sources.
- *
- * TODO: note creation not working (will be rewritten anyway)
+ * makes no assumptions about keys or values; can only be used with include_docs
  * 
- * (TODO: eventually) intended for use with
+ * for use with
  *   -  /sources/:source
  *   -  /users/:user/sources/:source
  *   - /tags/:tag
@@ -314,91 +313,95 @@ exports.quotes = function(head, req) {
     var quote_sorter = function(a,b){ return page_order_comparitor(a.page_order, b.page_order) };    // <-- NB b,a because we want ascending order
     _(sources).each(function(source){
         var source_quotes = source.quotes;
-        source_quotes.sort(quote_sorter);
+        if( source_quotes ) {
+            source_quotes.sort(quote_sorter);
+        }
     });
     
-    // -- configure nrama
-    if( req.client ) {
-        window.nrama = nrama_init();
-    }
     
-    /*
-    // -- configure note edit event -- blur on textbox triggers save note
-    if( req.client ) {
-        $('textarea.note-content').die().live('blur', function(){
-            console.log('caught blur: saving note ...');
-            var $note = $(this);
-            $note.attr('disabled','disabled');
-            var note_id = $(this).attr('id');
-            var note = find_note[note_id];
-            var old_content = note.content;
-            var new_content = $note.val();
-            if( old_content == new_content ) {
-                $note.removeAttr('disabled');
-                return;
-            }
-            if( new_content == '' ) {
-                //delete note
-                db.removeDoc(note, {}, function(error,data){
-                    if( error ) {
-                        note.content = old_content;
-                        $note.text(note.content);
-                        $note.css('color','red').removeAttr('disabled');
-                        return;
-                    }
-                    $note.parents('li.note').hide(1000, function(){ $note.remove(); });
-                });
-                return;
-            } 
-            $note.css('color','#3300CC').css('text-shadow','0 0 2px #555555');
-            note.content = new_content;
-            db.saveDoc(note, {}, function(error, data){
-                if( error ) {
-                    note.content = old_content;
-                    //nb we don't update the textarea -- user may try to re-save
-                    $note.css('color','red').removeAttr('disabled');
-                } 
-                note._rev = data.rev;
-                $note.css('color','black').css('text-shadow','none').removeAttr('disabled');
-                $note.text(note.content);   //must update text for sorting to work
-                //$note.parents('ul.notes').first().sortlist(); //sorting sometimes makes it seem the note disappeared
-                return;
-            });        
-        });
-    }
+    // -- configure nrama, attach event listners
     
-    //configure add a note
     if( req.client ) {
-        $('.add-a-note').die().live('click', function(){
-            console.log('add a note ...');
-            var $quote = $(this).parents('.quote').first();
-            var quote = find_quote[$quote.attr('id')];
-            db.newUUID(function(error,uuid){
-                if(error) {
-                    console.log(error);
-                    return;
-                }
-                console.log(uuid);
-                var note = {
-                    _id : uuid,
-                    type : 'note',
-                    content : "type here",
-                    quote_id : quote._id,
-                    page_id : quote.page_id,
-                    url : quote.url,
-                    created : new Date().getTime(),
-                    user_id : req.userCtx.name
-                }
+        
+        var nrama = nrama_init(find_source);
+        window.nrama = nrama;                   //TODO remove!
+        
+        $(document).one('nrama_page_loaded', function(){
+            $('._sort-me').sortlist();
+            $('textarea._nrama-note-content').autogrow();
+            $('._nrama-note').each(function(){
+                var $note = $(this);
+                var note_id = $note.attr('id');
+                $note.data('nrama_note', find_note[note_id]);
+            });
+            
+            //save after notes have been edited
+            $('textarea._nrama-note-content').one('blur', nrama.notes.update_on_blur);
+            
+            //configure add a note
+            $('.add-a-note').die().live('click', function(){
+                console.log('add a note ...');
+                var $quote = $(this).parents('._nrama-quote').first();
+                var quote = find_quote[$quote.attr('id')];
+                var note = nrama.notes.create(quote);
+                //add to page data
                 find_note[note._id] = note;
-                var note_html = '<li class="note"><textarea id="'+note._id+'" class="note-content">'+note.content+'</textarea></li>';
-                $note = $(note_html);
+                //display note
+                var note_html = '<li id="'+note._id+'" class="_nrama-note"><textarea class="_nrama-note-content">'+note.content+'</textarea></li>';
+                var $note = $(note_html);
                 $('ul.notes',$quote).prepend($note);
+                $note = $('#'+note._id);        //overwrite after prepend
+                $note.data('nrama_note',note);
+                $('textarea', $note).focus().select().one('blur', nrama.notes.update_on_blur);
                 $note.hide().show(500, function(){ $('#'+note._id).autogrow().focus().select(); });
                 console.log('done');
             });
+            
+            //TODO can only do this if user owns the quote!!!
+            
+            //configure delete a quote
+            var delete_on_meta_click = function(e){
+                if( !e.altKey && !e.metaKey ) {
+                    return;
+                }
+                var $quote = $(this);
+                var quote = find_quote[ $quote.attr('id') ];
+                if( quote.user_id[0] != '*' ) {
+                    if( !req.userCtx || req.userCtx.name != quote.user_id ) {
+                        console.log('cannot delete another users quotes');
+                        return;
+                    }
+                }
+                var $notes =  $('._nrama-note', $quote);  
+                if( $notes.length != 0 ) {
+                    //don't delete quotes with notes attached ...
+                    $quote.css({'border-top':'1px dashed red',
+                                     'border-bottom':'1px dashed red'})
+                    //... instead make the relevant notes bounce
+                    $notes.effect('bounce', function(){
+                        $quote.css({'border-top':'none',
+                                         'border-bottom':'none'},500);
+                    });
+                    return;
+                }
+                //remove the quote
+                $quote.css('background-color','orange');
+                nrama.persist.rm(quote, function(error, data){
+                    if( error ) {
+                        nrama._debug({msg:'nrama: error removing quote',error:error});
+                    } else {
+                        $quote.css('background-color','red').
+                            animate({'background-color':'black'}, function(){
+                                $quote.remove();
+                            });
+                    }
+                });
+            }
+            $('._nrama-quote').die().live('click', delete_on_meta_click);
         });
     }
-    */
+    
+    
     
     //TODO remove !
     if( req.client ) {
@@ -406,7 +409,8 @@ exports.quotes = function(head, req) {
         window.find_quote = find_quote;
     }
     var content = templates.render('quotes.html', req, _({
-            sources : sources
+            sources : sources,
+            no_sources : (sources.length == 0)  //because !![] == true
         }).extend( make_universal_template_data(req) )
     );
 

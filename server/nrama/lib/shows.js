@@ -7,7 +7,7 @@ var templates = require('kanso/templates');
 
 exports.welcome = function (doc, req) {
     return {
-        title: 'It worked!',
+        title: 'Note-o-rama : note - quote - analyse',
         content: templates.render('welcome.html', req, {})
     };
 };

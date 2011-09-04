@@ -1,26 +1,21 @@
 {>"user_header.html"/}
 {<what}tags{/what}
-<div class="navigation" >
-    {?is_users_own_page}
-        -- see <a href="{baseURL}{query_source_url}">everyone's notes on this</a>;
-    {:else}
-        {?userCtx.name}
-            {?query_user}
-                -- see &amp; edit <a href="{baseURL}/users/{userCtx.name|uc}{query_source_url}{}"> {?query_user}only {/query_user}your notes on this source</a>;
-            {:else}
-                {?quotes}
-                    -- see &amp; edit <a href="{baseURL}/users/{userCtx.name|uc}{query_source_url}"> {?query_user}only {/query_user}your notes on this source</a>;
-                {:else}
-                {/quotes}
-            {/query_user}
-        {:else}
-            {?query_user}
-                -- see <a href="{baseURL}{query_source_url}">everyone's notes on this</a>
-            {/query_user}
-        {/userCtx.name}
+<div class="navigation">
+    --
+    {^is_users_own_page}
+        {?query_user}
+            see 
+            <a href="{baseURL}{query_user_url}/sources">{query_user}'s sources</a> or
+            <a href="{baseURL}{query_user_url}/authors">authors</a>{?userCtx.name}; <br />-- {/userCtx.name}
+        {/query_user}
     {/is_users_own_page}
     {?userCtx.name}
-        go to <a href="{baseURL}/users/{userCtx.name|uc}">your sources</a>
+        go to 
+        {^is_users_own_page}
+            <a href="{baseURL}/users/{userCtx.name|uc}/tags">your tags</a>,
+        {/is_users_own_page}
+        <a href="{baseURL}/users/{userCtx.name|uc}/sources">{?is_users_own_page}your {/is_users_own_page}sources</a> or
+        <a href="{baseURL}/users/{userCtx.name|uc}/authors">authors</a>
     {/userCtx.name}
 </div>
 

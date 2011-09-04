@@ -55,12 +55,18 @@ div#session {
     margin: 0.2em 1em;
 }
 
-#session .username {
+#session .username a {
     color: #FFF;
     margin-right: 1em;
     text-shadow : 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff, 0 0 20px #ff2d95, 0 0 30px #ff2d95, 0 0 40px #ff2d95, 0 0 50px #ff2d95, 0 0 75px #ff2d95;
     border-left: 1px solid #666;
     padding: 0 0 0 1em;
+}
+#session .username a:hover {
+    background-color : inherit;
+    text-decoration : none;
+    color : #000;
+    text-shadow : 0 0 2px #fff, 0 0 3px #fff, 0 0 5px #fff, 0 0 7px #ff2d95, 0 0 10px #ff2d95, 0 0 14px #ff2d95, 0 0 17px #ff2d95, 0 0 27px #ff2d95;
 }
 
 #session ul.actions,
@@ -80,6 +86,8 @@ div#session {
 
 #session ul.actions li a:hover {
     color: #FFF;
+    background-color : inherit;
+    text-shadow : 0 0 2px #fff, 0 0 3px #fff, 0 0 5px #fff, 0 0 7px #ff2d95, 0 0 10px #ff2d95, 0 0 14px #ff2d95, 0 0 17px #ff2d95, 0 0 27px #ff2d95;
 }
 
 #session ul.actions,span.username {
@@ -129,7 +137,12 @@ div#session {
     text-shadow : 0 0 2px #fff, 0 0 3px #fff, 0 0 5px #fff, 0 0 7px #ff2d95, 0 0 10px #ff2d95, 0 0 14px #ff2d95, 0 0 17px #ff2d95, 0 0 27px #ff2d95;
     display : inline;
 }
-
+#nrama_logo :hover {
+    color : #fff;
+    text-decoration: none;
+    background-color : inherit;
+    text-shadow : 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff, 0 0 20px #ff2d95, 0 0 30px #ff2d95, 0 0 40px #ff2d95, 0 0 50px #ff2d95, 0 0 75px #ff2d95;
+}
 
 /**
  * for the content
@@ -214,6 +227,7 @@ li.source {
     padding-bottom : 2em;
 }
 textarea._nrama-note-content {
+    background-color : inherit;
     font-size: 14px;
     font-family: Palatino, 'Palatino Linotype', Georgia, Times, 'Times New Roman', serif;
     border : none;

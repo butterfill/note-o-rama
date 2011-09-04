@@ -1,6 +1,6 @@
 {#userCtx}
   <div id="session" class="{?name}loggedin{:else}loggedout{/name}">
-    <span class="username">{name}</span>
+    <span class="username"><a href="{baseURL}/users/{name|uc}">{name}</a></span>
     <ul class="actions">
       <li class="logout"><a href="#">Logout</a></li>
       <li class="signup"><a href="#">Signup</a></li>
