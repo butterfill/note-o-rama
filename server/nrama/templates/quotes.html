@@ -22,19 +22,31 @@
     
     {^is_users_own_page}
         {?query_user}
+            <br />--        {! ok: we just displayed something !}
             see
             <a href="{baseURL}{query_user_url}/sources">{query_user}'s sources</a>,
             <a href="{baseURL}{query_user_url}/authors">authors</a> or
-            <a href="{baseURL}{query_user_url}/tags">tags</a>{?userCtx.name}; <br />-- {/userCtx.name} 
+            <a href="{baseURL}{query_user_url}/tags">tags</a>{?userCtx.name}; {/userCtx.name}
+        {:else}
+            {! the following is duplicated just belwo !}
+            {?userCtx.name}
+                <br />--        {! this assumes we just displayed something, false if not a /users/user path and there are no sources !}
+                go to 
+                <a href="{baseURL}/users/{userCtx.name|uc}">your sources</a>,
+                <a href="{baseURL}/users/{userCtx.name|uc}/authors">authors</a> or
+                <a href="{baseURL}/users/{userCtx.name|uc}/tags">tags</a> 
+            {/userCtx.name}
         {/query_user}
+    {:else}
+        {?userCtx.name}
+            <br />--        {! this assumes we just displayed something, false if not a /users/user path and there are no sources !}
+            go to 
+            <a href="{baseURL}/users/{userCtx.name|uc}">your sources</a>,
+            <a href="{baseURL}/users/{userCtx.name|uc}/authors">authors</a> or
+            <a href="{baseURL}/users/{userCtx.name|uc}/tags">tags</a> 
+        {/userCtx.name}
     {/is_users_own_page}
 
-    {?userCtx.name}
-        go to 
-        <a href="{baseURL}/users/{userCtx.name|uc}">your sources</a>,
-        <a href="{baseURL}/users/{userCtx.name|uc}/authors">authors</a> or
-        <a href="{baseURL}/users/{userCtx.name|uc}/tags">your tags</a> 
-    {/userCtx.name}
 </div>
 
 

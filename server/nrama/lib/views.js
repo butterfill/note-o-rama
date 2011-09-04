@@ -175,3 +175,23 @@ exports.tags = {
   },
   reduce : "_count"
 };
+
+/**
+ * for the flow, show notes by recency.  Allows a quote-centred view rather than
+ *  source-centred.
+ *
+ * Like tags, it provides note-quote-source triples and must be used with
+ *  include_docs
+ */ 
+exports.quotes = {
+  map : function(doc) {
+    if( doc.type && doc.type == 'note' ) {
+      var note = doc;
+      if( note.user_id && note.source_id && note.quote_id && note.updated) {
+        emit([ note.user_id, note.updated ], null);                  //include the note iteself
+        emit([ note.user_id, note.updated ], {_id:note.source_id});  //include the source
+        emit([ note.user_id, note.updated ], {_id:note.quote_id});   //include the quote
+      }
+    }
+  }
+};

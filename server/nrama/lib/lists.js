@@ -7,6 +7,20 @@ var templates = require('kanso/templates'),
     _ = require('./underscore')._,
     nrama_init = require('./nrama2_init').init;
 
+
+/**
+ * set the title element for a page based on the query
+ */
+var make_title = function(what, req) {
+    var title = 'Note-o-rama : ';
+    if( req.query && req.query.user ) {
+        title += req.query.user+"'s "+what;
+    } else {
+        title += what;
+    }
+    return title;
+}
+
 /**
  * The templates need to know what's in the path of the current url and how to
  * include parts of that in creating links.
@@ -81,7 +95,7 @@ exports.all_users = function (head, req) {
         }).extend( make_universal_template_data(req) )
     );
 
-    return {title: 'note-o-rama : all users', content: content};
+    return {title: 'Note-o-rama : all users', content: content};
 
 };
 
@@ -115,8 +129,8 @@ exports.sources = function(head, req) {
             sources : sources
         }).extend( make_universal_template_data(req) )
     );
-
-    return {title: 'note-o-rama : sources', content: content };
+    
+    return {title: make_title('sources',req), content: content };
 };
 
 
@@ -155,7 +169,7 @@ exports.authors = function (head, req) {
         }).extend( make_universal_template_data(req) )
     );
 
-    return {title: 'note-o-rama : authors', content: content};
+    return {title: make_title('authors',req), content: content};
 
 };
 
@@ -200,11 +214,64 @@ exports.tags = function(head, req) {
     }
 
 
-    return {title: 'note-o-rama : tags', content: content};
+    return {title: make_title('tags',req), content: content};
 }
 
 
+exports.flow = function(head, req) {
+    start({code: 200, headers: {'Content-Type': 'text/html'}});
 
+    var find_source = {};   //indexed by page_id, the first source we find gets priority
+    var find_quote = {};    //indexed by quote_hash 
+    var notes_for_quotes = {};
+    var find_note = {}; //indexed by _id
+   
+    var row = getRow();
+    while( row ) {
+        var thing = row.doc;        // <-- NB must be used with ?include_docs=true
+        
+        if( thing.type == 'source' ) {
+            var source = thing;
+            if( !find_source[source.page_id] ) {
+                find_source[source.page_id] = source;
+                source.updated_time = new Date(source.updated).toISOString();   //nb should not persist this property
+                source.users = [];          //nb should not persist this property
+            }
+            find_source[source.page_id].users.push(source.user_id);
+        }
+        if( thing.type == 'quote' ) {
+            var quote = thing;
+            if( !find_quote[quote.hash] ) {
+                find_quote[quote.hash] = quote;
+                quote.users = [];   //nb should not persist this property (quotes are not updated)
+            }
+            find_quote[quote.hash].users.push(quote.user_id);
+        }
+        if( thing.type == 'note' ) {
+            var note = thing;
+            find_note[note._id] = note;
+            if( !notes_for_quotes[note.quote_hash]  ) {
+                notes_for_quotes[note.quote_hash] = [];
+            }
+            notes_for_quotes[note.quote_hash].push(note);
+        }
+        
+        row = getRow();
+    }
+
+    // -- attach notes to quotes
+    var quotes = _(find_quote).values();
+    _(quotes).each(function(quote) {
+        quote.notes = notes_for_quotes[quote.hash] || [];
+        var source = find_source[quote.page_id];
+        if( !source.quotes ) {
+            source.quotes = [];
+        }
+        source.quotes.push(quote);
+    });
+    var sources = _(find_source).values();
+    
+}
 
 
 
@@ -414,7 +481,7 @@ exports.quotes = function(head, req) {
         }).extend( make_universal_template_data(req) )
     );
 
-    return {title: 'note-o-rama : TODO', content: content };
+    return {title: make_title('notes',req), content: content };
 }
 
 
