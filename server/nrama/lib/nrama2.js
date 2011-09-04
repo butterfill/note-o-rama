@@ -9,7 +9,7 @@
  * For dependencies see lib.js
  *
  * To run as bookmarklet (change url; delete the 'now' param if not in developent mode):
- *   javascript:(function(){_nrama_bkmklt=true;document.body.appendChild(document.createElement('script')).src='http://localhost:8888/nrama2_test/nrama2.js?now=new Date().getTime()'; })();
+ *   javascript:(function(){delete module;delete exports;_nrama_bkmklt=true;document.body.appendChild(document.createElement('script')).src='http://localhost:8888/nrama2_test/nrama2.js?now=new Date().getTime()'; })();
  *
  * To embed in page:
  *   <script src='lib.min.js" ></script>
@@ -34,7 +34,7 @@
  */
 (function(exports){
     var _NRAMA_LIB_URL = "http://localhost:8888/nrama2_test/lib.min.js"; //where to load lib from (for bookmarklet only)
-    
+
     /**
      * caution : if settings.debug, this will add to window (if defined)
      */
@@ -238,20 +238,21 @@
          * call update once per source only (but if it fails, will repeat next
          * time it is called)
          */
-        var _updated = [];
-        sources.update_once =function(source, callback) {
-            if( source._id in _updated  ) {
-                callback.apply(null, 'already done');
-            } else {
-                sources.update(source, function(error, data){
-                    if(error){
-                        callback(error,data);
-                    } else {
-                        _updated .push(source._id);
-                        callback(error, data);
-                    }
-                });
-            }
+        var _update_memo = [];
+        sources.update_once = function(source, callback) {
+            var already_done = ( _.indexOf(_update_memo, source._id) != -1 );
+            if( already_done  ) {
+                callback(null, 'already done');
+                return;
+            } 
+            sources.update(source, function(error, data){
+                if(error){
+                    callback(error,data);
+                } else {
+                    _update_memo.push(source._id);
+                    callback(error, data);
+                }
+            });
         };
         
         /**
@@ -291,9 +292,7 @@
     };
     
     /**
-     *  DEPENDS
-     *  - jQuery UI (for draggable)
-     *  - jquery.autogrow
+     *  @param quotes can be set to null; if provided it is used to position noes
      */
     var _make_notes = function(settings, uuid, persist,
                                sources, quotes, finder) {
@@ -303,7 +302,7 @@
          */
         notes.create = function(quote){
             var new_note = {
-                _id : uuid(),  
+                _id : 'n_'+uuid(),  
                 type : 'note',
                 content : settings.note_default_text,
                 quote_id : quote._id,
@@ -354,23 +353,24 @@
             });
         };
             
-        /**
-         * dispaly a note on the page -- i.e. create and style the HTML and add it
-         * to the approriate part of the document (the #_nrama_notes).
-         */
         var _zindex_counter = 10000; //used for bringing notes to the front and to ensure new notes are on top
         notes.bring_to_front = function($note) {
             $note.css('z-index', _zindex_counter++);  //move note to frong
         }
 
+        /**
+         * dispaly a note on the page -- i.e. create and style the HTML and add it
+         * to the approriate part of the document (the #_nrama_notes).
+         * If note does not have position info (either because it is newly created,
+         * or because it was created on the server), attempt to position it near the quote.
+         */
         notes.display = function(note, options) {
-            // --- apply defaults to options
             var options_defaults = {
                 focus : true        //set focus to the note's textarea after creating it?
             };
             var display_settings = $.extend(true, {}, options_defaults, options );
             
-            // --- apply defaults to notes (positioning)
+            // --- apply some positioning defaults to notes
             var note_defaults = {};
             var viewport_width = $(window).width();
             //shift quotes horizontally by 1/30 of viewport_width
@@ -378,11 +378,15 @@
             var note_right_gap = Math.min(15, viewport_width/65);
             note_defaults.left = viewport_width - note_right_gap - (note.width || settings.note_width) - random_shift();
             //to get default for top we need position of associated quote --- only compute this if we really need it
-            if( note.quote_id && !note.top ) {
-                var quote_offset = quotes.offset(note.quote_id);
+            if( !note.top ) {
+                var quote_offset = null;
+                if( note.quote_id && quotes ) {
+                    quote_offset = quotes.offset(note.quote_id);    //may return null if can't be computed
+                }
                 if( quote_offset ) {
                     note_defaults.top = quote_offset.top + random_shift();
                 } else {
+                    note_defaults.top = 0 + random_shift(); //put note at top of screen if can't do better
                     $.log("nrama unable to get default position for note " + note._id + " because no quote offset found for quote " + note.quote_id + "(has the quote been added to the page?)");
                 }
             } 
@@ -591,9 +595,7 @@
     var _nrama_init = function(nrama, $) {
         //fix uuids so that it doesn't include dashes (no good for couchDB)
         nrama.uuid = function (){
-            var before = uuid();
-            var after = 'N'+before.replace(/-/g,'');
-            return after;
+            return  'N'+uuid().replace(/-/g,'');
         };
     
         nrama.settings = {
@@ -609,12 +611,12 @@
             password : 'new',   //TODO think of clever way to store this
             me_only : true,    //show only my notes and quotes
             // -- quotes & note settings
+            note_default_text : 'type now',
             background_color : '#FCF6CF',   //for quotes
             background_color_other : 'rgba(240,240,240,0.5)',   //color for other ppl's notes and quotes (TODO)
             note_background_color : 'rgba(240,240,240,0.9)', 
             persist_started_color : '#FFBF00',  //#FFBF00=orange
             note_width : 150, //pixels
-            note_default_text : 'type now',
             max_quote_length : 5000,  //useful because prevents
             // -- styling
             note_style : {
@@ -1013,7 +1015,7 @@
             nrama.page_id = window.location.protocol+"//"+window.location.host+window.location.pathname;  //the url with no ?query or #anchor details
             
             nrama.finder.find_source = function(thing) {
-                //in embedded mode there is only every one source
+                //in embedded mode there is only one source (but we re-create it in case settings changed)
                 return nrama.sources.create({
                     page_title : document.title,
                     url : document.location.href,
@@ -1034,14 +1036,31 @@
             rangy.init();
     
             $.log('nrama: loading notes and quotes ...');
-            nrama.quotes.load( nrama.page_id, nrama.default_callback );
-            nrama.notes.load( nrama.page_id, nrama.default_callback );
-    
+            //using _.defer just means waiting until callstack cleared
+            _.defer(nrama.quotes.load, nrama.page_id, function(error, data){
+                _.defer(nrama.notes.load, nrama.page_id, nrama.default_callback );
+            });
             
             // --- configure events ---
             
+            //based on underscore but can't use their throttle as it calls fn AFTER timout
+            var throttle2 = function(func) {
+                var timeout;
+                return function() {
+                    var context = this,
+                        args = arguments;
+                    var reset_timeout = function() {
+                        timeout = null;
+                    };
+                    if( !timeout ) {
+                        timeout = setTimeout(reset_timeout, nrama.settings.event_delay);
+                        func.apply(context, args);
+                    }
+                };
+            };
+            
             // highlighting text creates a quote
-            $(document).bind("mouseup", function(e){
+            var create_quote_from_selection = function(e){
                 if( e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) {
                     //any modifier key cancels quote creation
                     return;
@@ -1069,10 +1088,11 @@
                     });
                     nrama._debug((function(){ var a={}; a[quote._id]=quote; return a; })()); 
                 }
-            });
+            };
+            $(document).bind("mouseup", throttle2(create_quote_from_selection) );
             
             //click a quote to create a note
-            $('._nrama-quote').live('click', function(e){
+            var create_note_from_quote_click = function(e){
                 if( e.shiftKey || e.ctrlKey ) {
                     //shift key cancels notecreation, so does ctrl
                     return;
@@ -1084,7 +1104,8 @@
                 var quote = $(this).data('nrama_quote');
                 var note = nrama.notes.create(quote);
                 nrama.notes.display(note);
-            });
+            };
+            $('._nrama-quote').live('click', throttle2(create_note_from_quote_click) );
             
             // alt- or meta-click a quote to delete it (after checking there are no linked notes)
             $('._nrama-quote').live('click', function(e){
@@ -1138,7 +1159,12 @@
 
         if( typeof _nrama_bkmklt === 'undefined' && typeof require !== 'undefined' ) {
             //initialise as commonJS module
-            //TODO !!!
+            //in this mode, we just provide functions to build the nrama object
+            exports._make_logging = _make_logging;
+            exports._make_debug = _make_debug;
+            exports._make_persist = _make_persist;
+            exports._make_sources = _make_sources;
+            exports._make_notes = _make_notes;
             //exports.nrama.uuid = require('./nrama_uuid');
             //_nrama_init_commonjs(exports.nrama, jQuery);
         } else {

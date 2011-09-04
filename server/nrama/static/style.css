@@ -188,7 +188,7 @@ a:hover .icon {
     font-size : 18px;
 }
 
-.note-content {
+._nrama-note-content {
     margin-bottom: 1em;
 }
 
@@ -206,14 +206,14 @@ ul.sources, ul.users, ul.authors  {
     -webkit-padding-start : 0px;
     padding-left : 0em;
 }
-li.note, li.add-a-note, li.user-line {
+li._nrama-note, li.add-a-note, li.user-line {
     display:block;
 }
 li.source {
     display:block;
     padding-bottom : 2em;
 }
-textarea.note-content {
+textarea._nrama-note-content {
     font-size: 14px;
     font-family: Palatino, 'Palatino Linotype', Georgia, Times, 'Times New Roman', serif;
     border : none;

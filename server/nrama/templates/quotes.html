@@ -66,14 +66,14 @@
                     {! [{page_order}] !}
                     <ul class="notes _sort-me {^is_users_own_page}_not_user_page{/is_users_own_page}">
                         {#notes}
-                            <li class="note">
+                            <li class="_nrama-note">
                                 {?is_users_own_page}
-                                    <textarea id="{_id}" class="note-content" rows="1">{content}</textarea>
+                                    <textarea id="{_id}" class="_nrama-note-content" rows="1">{content}</textarea>
                                 {:else}
                                     {^query_user}
                                         <span class='quote-user_id'><a href="{baseURL}/users/{user_id|uc}">{user_id}</a></span>]
                                     {/query_user}
-                                    <span class="note-content">{content}</span>
+                                    <span class="_nrama-note-content">{content}</span>
                                 {/is_users_own_page}
                             </li>
                         {/notes}
@@ -97,6 +97,6 @@
 <script>
     if( typeof($)!='undefined' ) {
         $('._sort-me').sortlist();
-        $('textarea.note-content').autogrow();
+        $('textarea._nrama-note-content').autogrow();
     }
 </script>

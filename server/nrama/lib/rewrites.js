@@ -84,7 +84,7 @@ module.exports = [
     },
     {
         from : '/sources/:source',                  //everyone's notes on a source
-        to : '_list/source/pageId_userId',
+        to : '_list/quotes/pageId_userId',
         query : {
             startkey : [":source"],
             endkey : [":source",{}],
@@ -93,7 +93,7 @@ module.exports = [
     },
     {
         from : '/users/:user/sources/:source',    //the user's notes on a source
-        to : '_list/source/pageId_userId',
+        to : '_list/quotes/pageId_userId',
         query : {
             key : [":source",":user"],
             include_docs : 'true'
@@ -109,7 +109,7 @@ module.exports = [
     },
     {
         from : '/tags/:tag',                   //show everything marked with a particular tag
-        to : '_list/quotes2/tags',
+        to : '_list/quotes/tags',
         query : {
             endkey : [":tag"],
             startkey : [":tag", {}],
@@ -130,7 +130,7 @@ module.exports = [
     },
     {
         from : '/users/:user/tags/:tag',                 //show everything of a users' marked with a particular tag
-        to : '_list/quotes2/tags',
+        to : '_list/quotes/tags',
         query : {
           endkey : [":tag",":user"],
           startkey : [":tag", ":user", {}],
