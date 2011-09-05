@@ -15,6 +15,9 @@
 }
 .bibliographic-details {
 }
+.bibliographic-details.compact {
+    padding-top: 0.33em;
+}
 div.bibliographic-details.compact, div.bibliographic-details.compact a {
     color : rgb(75,75,75);
     text-align : right;
@@ -164,6 +167,15 @@ body {
     font-family: Palatino, 'Palatino Linotype', Georgia, Times, 'Times New Roman', serif;
     margin: 0;
     max-width : 800px;
+}
+
+hr {
+    border: none;
+    width: 33%;
+    color: #BBB;
+    height: 1px;
+    background-color: #BBB;
+    margin-top: 5em;
 }
 
 #content {

@@ -341,11 +341,11 @@ exports.flow = function(head, req) {
                 if( !e.altKey && !e.metaKey ) {
                     return;
                 }
-                var $quote = $(this);
+                var $quote = $(this).parents('._nrama-quote').first();
                 var quote = find_quote[ $quote.attr('id') ];
                 if( quote.user_id[0] != '*' ) {
                     if( !req.userCtx || req.userCtx.name != quote.user_id ) {
-                        console.log("cannot delete another users' quotes");
+                        console.log('cannot delete another users quotes');
                         return;
                     }
                 }
@@ -374,7 +374,7 @@ exports.flow = function(head, req) {
                     }
                 });
             }
-            $('._nrama-quote').die().live('click', delete_on_meta_click);
+            $('.quote-content').die().live('click', delete_on_meta_click);
         });
     }
     
@@ -546,7 +546,7 @@ exports.quotes = function(head, req) {
                 if( !e.altKey && !e.metaKey ) {
                     return;
                 }
-                var $quote = $(this);
+                var $quote = $(this).parents('._nrama-quote').first();
                 var quote = find_quote[ $quote.attr('id') ];
                 if( quote.user_id[0] != '*' ) {
                     if( !req.userCtx || req.userCtx.name != quote.user_id ) {
@@ -579,7 +579,7 @@ exports.quotes = function(head, req) {
                     }
                 });
             }
-            $('._nrama-quote').die().live('click', delete_on_meta_click);
+            $('.quote-content').die().live('click', delete_on_meta_click);
         });
     }
     

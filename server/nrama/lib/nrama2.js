@@ -66,7 +66,7 @@
      * these are exactly the settings for embedded mode (bkmrklt or <script>),
      * and they are the basis for server mode (some are overriden)
      */
-    var _make_settings = function(nrama_uuid){
+    exports._make_settings = function(nrama_uuid){
         var settings = {
             // -- internals
             is_embedded : true,     //set to false when being used on the server
@@ -127,7 +127,7 @@
     /**
      * caution : if settings.debug, this will add to window (if defined)
      */
-    var _make_debug = function(settings, window) {
+    exports._make_debug = function(settings, window) {
         var _debug = function(){};    //does nothing if not debugging
         if( settings.debug && typeof window !== 'undefined' ) {
             //window.$=jQuery;                        //<-- nb breaks noConflict
@@ -151,7 +151,7 @@
     /**
      * caution: extends $
      */
-    var _make_logging = function(settings, $) {
+    exports._make_logging = function(settings, $) {
         var logger = function(){
             if( !settings.debug ) {
                 return false;       // will not log anything if not in debug mode
@@ -172,7 +172,7 @@
      * @param session{Object} implements (a subset of) kanso's session module
      * @param uuid{function} returns a uuid synchroniously
      */
-    var _make_persist = function(db, session, uuid, _debug) {
+    exports._make_persist = function(db, session, uuid, _debug) {
         persist = {};
 
         //log errors (used to wrap callbacks from db & session)
@@ -299,7 +299,7 @@
      *    - $               from jQuery
      *    -  _              from underscore.js
      */
-    var _make_sources = function(settings, persist, _debug, lib/*optional*/) {
+    exports._make_sources = function(settings, persist, _debug, lib/*optional*/) {
         var sources = {};
         sources.b64_hmac_md5    = lib ? lib.b64_hmac_md5 : window.b64_hmac_md5;
         sources.BibtexParser    = lib ? lib.BibtexParser : window.BibtexParser;
@@ -405,7 +405,7 @@
     /**
      *  @param quotes can be set to null; if provided it is used to position noes
      */
-    var _make_notes = function(settings, uuid, persist,
+    exports._make_notes = function(settings, uuid, persist,
                                sources, quotes, _debug) {
         var notes = {};
         /**
@@ -593,15 +593,16 @@
     
             var updates = {
                 content : new_content,
-                background_color : settings.note_background_color,
-                width : $note.width(),
-                left : $note.offset().left,
-                top : $note.offset().top,
                 updated : new Date().getTime()
             };
             if( settings.is_embedded ) {
-                updates.doc_height = $(document).height();
-                updates.doc_width = $(document).width();
+                $.extend(updates, {
+                    background_color : settings.note_background_color,
+                    left : $note.offset().left,
+                    top : $note.offset().top,
+                    doc_height : $(document).height(),
+                    doc_width : $(document).width()
+                });
             }
             var new_note = $.extend(true, {}, note, updates);   
             
@@ -709,7 +710,7 @@
     /**
      * for dialogs (todo -- move event handlers)
      */
-    var _make_ui = function(settings, session, _debug){
+    exports._make_ui = function(settings, session, _debug){
         var ui = {};
         
         var _update_user_id = function(data) {
@@ -855,12 +856,12 @@
     var _nrama_init = function(nrama, $) {
         nrama.uuid = exports._make_uuid(uuid);
     
-        nrama.settings = _make_settings(nrama.uuid);
+        nrama.settings = exports._make_settings(nrama.uuid);
         if( typeof _nrama_user !== 'undefined' && _nrama_user ) {
             nrama.settings.user_id = _nrama_user;
         }
-        nrama._debug = _make_debug(nrama.settings, window);
-        nrama.log = _make_logging(nrama.settings, $);
+        nrama._debug = exports._make_debug(nrama.settings, window);
+        nrama.log = exports._make_logging(nrama.settings, $);
 
         nrama.default_callback = function() {
             $.log('nrama.default_callback called with values:');
@@ -957,7 +958,7 @@
         };
         
         
-        nrama.persist = _make_persist(nrama.db, nrama.session, nrama.uuid, nrama._debug);
+        nrama.persist = exports._make_persist(nrama.db, nrama.session, nrama.uuid, nrama._debug);
         
         /**
          * Ways of serializing and restoring rangy range objects.
@@ -984,7 +985,7 @@
         // the serializer to be used in creating new quotes
         nrama.serializer = nrama.serializers['rangy_1_2'];
     
-        nrama.sources = _make_sources(nrama.settings, nrama.persist, nrama._debug);
+        nrama.sources = exports._make_sources(nrama.settings, nrama.persist, nrama._debug);
 
         /**
          * depends on :
@@ -1216,10 +1217,10 @@
             }
         }
         
-        nrama.notes = _make_notes(nrama.settings, nrama.uuid, nrama.persist,
-                                  nrama.sources, nrama.quotes, nrama._debug);
+        nrama.notes = exports._make_notes(nrama.settings, nrama.uuid, nrama.persist,
+                                          nrama.sources, nrama.quotes, nrama._debug);
         
-        nrama.ui = _make_ui(nrama.settings, nrama.session, nrama._debug);
+        nrama.ui = exports._make_ui(nrama.settings, nrama.session, nrama._debug);
 
         /**
          * main setup:
@@ -1375,16 +1376,8 @@
     if( typeof exports !== 'undefined' ) {    //exports undefined means nrama is already loaded -- bookmarklet may be called more than once)
 
         if( typeof _nrama_bkmklt === 'undefined' && typeof require !== 'undefined' ) {
-            //initialise as commonJS module
-            //in this mode, we just provide functions to build the nrama object
-            exports._make_settings = _make_settings;
-            exports._make_logging = _make_logging;
-            exports._make_debug = _make_debug;
-            exports._make_persist = _make_persist;
-            exports._make_sources = _make_sources;
-            exports._make_notes = _make_notes;
-            //exports.nrama.uuid = require('./nrama_uuid');
-            //_nrama_init_commonjs(exports.nrama, jQuery);
+            //this script is being used as a commonJS module
+            //already defined exports; initialisation is handled in another module.
         } else {
             if( typeof _nrama_bkmklt === 'undefined' || !_nrama_bkmklt ) {
                 //run as embedded <script> 
@@ -1402,7 +1395,6 @@
                     var script = document.createElement( "script" );
                     //script.charset = set this?$
                     script.src = url;
-                    // Attach handlers for all browsers
                     script.onload = script.onreadystatechange = function( _, isAbort ) {
                         if ( isAbort || !script.readyState || /loaded|complete/.test( script.readyState ) ) {
                             // Handle memory leak in IE
@@ -1419,8 +1411,6 @@
                         }
                     };
                     // Use insertBefore instead of appendChild  to circumvent an IE6 bug.
-                    // This arises when a base node is used (#2709 and #4378).
-                    //document.body.appendChild(script);
                     head.insertBefore( script, head.firstChild );
                 }
                 loadScript2(_NRAMA_LIB_URL, function() {
