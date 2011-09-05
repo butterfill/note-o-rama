@@ -75,9 +75,9 @@ exports.all_users = function (head, req) {
     start({code: 200, headers: {'Content-Type': 'text/html'}});
 
     // fetch all the rows
-    var users = [],
-        row = getRow();
-    while( row ) {
+    var users = [];
+    var row;
+    while( row = getRow() ) {
         var updated_time = '';
         try {
             updated_time = new Date(parseInt(row.value.max)).toISOString()
@@ -86,7 +86,6 @@ exports.all_users = function (head, req) {
             user_id : row.key,
             updated_time : updated_time    //this is time a source was updated
         });
-        row = getRow();
     }
 
     // generate the markup for a list of users
@@ -151,6 +150,10 @@ exports.authors = function (head, req) {
 
     var row = getRow();
     while( row ) {
+        if( !row || !row.key || !row.key[author_index_in_key] ) {
+            row = getRow();
+            continue;
+        }
         var current_author = row.key[author_index_in_key];
         author_sources = {
             author_name : current_author,
@@ -186,14 +189,17 @@ exports.tags = function(head, req) {
     var tag_index_in_key = parseInt( req.query.tag_index_in_key );
     
     var tags = [];
-    var row = getRow();
-    while( row ) {
+    
+    var row ;
+    while( row = getRow() ) {
+        if( !row.key || !row.key[tag_index_in_key] ) {
+            continue;
+        }
         tags.push({
            text : row.key[tag_index_in_key],
            weight : row.value,
            url : "/"
         });
-        row = getRow();
     }
     var content = templates.render('tags.html', req, _({
             tags : tags
@@ -229,9 +235,13 @@ exports.flow = function(head, req) {
     var find_quote = {};    //indexed by quote_hash, priority to the first we find
     var find_note = {}; //indexed by _id
    
-    var row = getRow();
-    while( row ) {
+    var row;
+    while( row  = getRow() ) {
         var thing = row.doc;        // <-- NB must be used with ?include_docs=true
+        
+        if( !thing || !thing.type ) {
+            continue;
+        }
         
         if( thing.type == 'source' ) {
             var source = thing;
@@ -250,8 +260,6 @@ exports.flow = function(head, req) {
             var note = thing;
             find_note[note._id] = note;
         }
-        
-        row = getRow();
     }
 
     //attach notes to quotes
@@ -397,9 +405,13 @@ exports.quotes = function(head, req) {
     var notes_for_quotes = {};
     var find_note = {}; //indexed by _id
    
-    var row = getRow();
-    while( row ) {
+    var row;
+    while( row  = getRow() ) {
         var thing = row.doc;        // <-- NB must be used with ?include_docs=true
+        
+        if( !thing || !thing.type ) {
+            continue;
+        }
         
         if( thing.type == 'source' ) {
             var source = thing;
@@ -426,8 +438,6 @@ exports.quotes = function(head, req) {
             }
             notes_for_quotes[note.quote_hash].push(note);
         }
-        
-        row = getRow();
     }
 
     // -- attach notes to quotes and quotes to sources
