@@ -51,9 +51,11 @@ events.on('updateFailure', function (err, info, req, res, doc) {
  * afterResponse is not documented, but I think it fires after the
  * document has been rendered by the client (and not after rendering by the server)
  */
-events.on('afterResponse', function(err, info, req, res, doc) {
-	if( typeof $ !=='undefined' ) {
+events.on('afterResponse', function(info, req, res) {
+	if( req.client && typeof $ !=='undefined' ) {
         $('._timeago').timeago();
+        $('._sort-me').sortlist();
+        $('textarea._nrama-note-content').autogrow();
 	}
     
 });

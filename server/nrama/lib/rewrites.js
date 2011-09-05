@@ -149,6 +149,17 @@ module.exports = [
           include_docs : 'true'
         }
     },
+    {
+        from : '/users/:user/tags/:tag/recent',                 //show everything of a users' marked with a particular tag
+        to : '_list/flow/tags',
+        query : {
+          endkey : [":tag",":user"],
+          startkey : [":tag", ":user", {}],
+          reduce : 'false',
+          descending : 'true',
+          include_docs : 'true'
+        }
+    },
     
     // -- for the bookmarklet/embeded client
     {

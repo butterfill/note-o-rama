@@ -19,14 +19,17 @@
     {/userCtx.name}
 </div>
 
-{^req_client}
-    <ul>
-        {#tags}
-            <li><a href="">{text}</a> : {weight}</li>
-        {/tags}
-    </ul>
-{/req_client}
-
-<div id="tag_cloud" style="width: 550px; height: 350px; position: relative;"></div>
+<div style="position:relative;">
+    <div style="margin-right: 551px">
+        <ul class='tags-list' >
+            {#tags}
+                <li class="tag"><a href="{baseURL}{query_user_url}/tags/{text|uc}">{text}</a></li>
+            {/tags}
+        </ul>
+    </div>
+    <div class='tags-cloud' id="tag_cloud"
+         style="position:absolute; right:0; top:0; width: 550px; height: 350px;">
+    </div>
+</div>
 
 {>"footer_event.html"/}

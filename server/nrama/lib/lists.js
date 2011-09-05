@@ -255,16 +255,24 @@ exports.flow = function(head, req) {
 
     //attach notes to quotes
     var notes = _.values(find_note);
+    var note_orphan_ids = [];   //ids of notes with no quote found; 
     _.each(notes, function(note) {
         var quote = find_quote[note.quote_hash];
-        if( !quote.notes ) quote.notes = [];
-        quote.notes.push(note);
+        if( !quote ) {
+            note_orphan_ids.push(note._id);
+        }else {
+            if( !quote.notes ){
+                quote.notes = [];
+            }
+            quote.notes.push(note);
+        }
     });
+    // for now we don't do anything with the note orphans
     
     //attach sources to quotes
     var quotes = _.values(find_quote);
     _.each(quotes, function(quote){
-        quote.source = find_source[quote.source_id]; 
+        quote.source = find_source[quote.source_id]; //may be undefined
     });
     
     if( req.client ) {
@@ -280,6 +288,88 @@ exports.flow = function(head, req) {
             quotes : quotes
         }).extend( make_universal_template_data(req) )
     );
+
+
+    // -- configure nrama, attach event listners
+    if( req.client ) {
+        
+        var nrama = nrama_init(find_source);
+        window.nrama = nrama;                   //TODO remove!
+        
+        $(document).one('nrama_page_loaded', function(){
+            $('._nrama-note').each(function(){
+                var $note = $(this);
+                var note_id = $note.attr('id');
+                $note.data('nrama_note', find_note[note_id]);
+            });
+            
+            //save after notes have been edited
+            $('textarea._nrama-note-content').one('blur', nrama.notes.update_on_blur);
+            
+            //configure add a note
+            $('.add-a-note').die().live('click', function(){
+                console.log('add a note ...');
+                var $quote = $(this).parents('._nrama-quote').first();
+                var quote = find_quote[$quote.attr('id')];
+                var note = nrama.notes.create(quote);
+                //add to page data
+                find_note[note._id] = note;
+                //display note
+                var note_html = '<li id="'+note._id+'" class="_nrama-note"><textarea class="_nrama-note-content">'+note.content+'</textarea></li>';
+                var $note = $(note_html);
+                $('ul.notes',$quote).prepend($note);
+                $note = $('#'+note._id);        //overwrite after prepend
+                $note.data('nrama_note',note);
+                $('textarea', $note).focus().select().one('blur', nrama.notes.update_on_blur);
+                $note.hide().show(500, function(){ $('#'+note._id).autogrow().focus().select(); });
+                console.log('done');
+            });
+            
+            //TODO can only do this if user owns the quote!!!
+            
+            //configure delete a quote
+            var delete_on_meta_click = function(e){
+                if( !e.altKey && !e.metaKey ) {
+                    return;
+                }
+                var $quote = $(this);
+                var quote = find_quote[ $quote.attr('id') ];
+                if( quote.user_id[0] != '*' ) {
+                    if( !req.userCtx || req.userCtx.name != quote.user_id ) {
+                        console.log('cannot delete another users quotes');
+                        return;
+                    }
+                }
+                var $notes =  $('._nrama-note', $quote);  
+                if( $notes.length != 0 ) {
+                    //don't delete quotes with notes attached ...
+                    $quote.css({'border-top':'1px dashed red',
+                                     'border-bottom':'1px dashed red'})
+                    //... instead make the relevant notes bounce
+                    $notes.effect('bounce', function(){
+                        $quote.css({'border-top':'none',
+                                         'border-bottom':'none'},500);
+                    });
+                    return;
+                }
+                //remove the quote
+                $quote.css('background-color','orange');
+                nrama.persist.rm(quote, function(error, data){
+                    if( error ) {
+                        nrama._debug({msg:'nrama: error removing quote',error:error});
+                    } else {
+                        $quote.css('background-color','red').
+                            animate({'background-color':'black'}, function(){
+                                $quote.remove();
+                            });
+                    }
+                });
+            }
+            $('._nrama-quote').die().live('click', delete_on_meta_click);
+        });
+    }
+    
+    
 
     return {title: make_title('flow',req), content: content};
 
@@ -339,15 +429,20 @@ exports.quotes = function(head, req) {
         row = getRow();
     }
 
-    // -- attach notes to quotes
+    // -- attach notes to quotes and quotes to sources
     var quotes = _(find_quote).values();
+    var orphaned_quotes = [];        //for now we don't do anything with oprhans
     _(quotes).each(function(quote) {
         quote.notes = notes_for_quotes[quote.hash] || [];
         var source = find_source[quote.page_id];
-        if( !source.quotes ) {
-            source.quotes = [];
+        if( !source ) {
+            orphaned_quotes.push(quote);
+        } else{
+            if( !source.quotes ) {
+                source.quotes = [];
+            }
+            source.quotes.push(quote);
         }
-        source.quotes.push(quote);
     });
     var sources = _(find_source).values();
 
@@ -399,15 +494,12 @@ exports.quotes = function(head, req) {
     
     
     // -- configure nrama, attach event listners
-    
     if( req.client ) {
         
         var nrama = nrama_init(find_source);
         window.nrama = nrama;                   //TODO remove!
         
         $(document).one('nrama_page_loaded', function(){
-            $('._sort-me').sortlist();
-            $('textarea._nrama-note-content').autogrow();
             $('._nrama-note').each(function(){
                 var $note = $(this);
                 var note_id = $note.attr('id');

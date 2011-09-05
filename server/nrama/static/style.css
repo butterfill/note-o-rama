@@ -13,6 +13,13 @@
 .journal {
     text-decoration : underline;
 }
+.bibliographic-details {
+    text-align : right;
+}
+div.bibliographic-details.compact, div.bibliographic-details.compact a {
+    color : rgb(75,75,75);
+}
+
 
 /**
  * links --- I prefer underline but it's too distracting in this app (lots of links)
@@ -155,7 +162,6 @@ abbr {
 body {
     font-size: 14px;
     font-family: Palatino, 'Palatino Linotype', Georgia, Times, 'Times New Roman', serif;
-    color: #000;
     margin: 0;
     max-width : 800px;
 }
@@ -194,6 +200,7 @@ h2.user-line {
 
 div.quotes {
     margin-top : 2em;
+    line-height : 1.5em;
 }
 
 a:hover .icon {
@@ -208,25 +215,29 @@ a:hover .icon {
 
 /* source within quote */
 ._nrama-quote .title-line {
-    font-size : 12px;
     text-align : right;
 }
 .source-for-single-quote {
-    font-size : 12px;
     text-align : right;
 }
 /* quote in the flow -- bigger than usual */
 .quote-line.flow {
-    font-size : 120%;
+    font-size : 16px;
     padding-top : 1em;
+    line-height : 1.5em;
 }
-
+._nrama-note textarea {
+    line-height : 1.5em;
+}
 ._nrama-note-content {
     margin-bottom: 1em;
 }
 
-ul.notes {
+ul {
     -webkit-padding-start : 0px;
+    padding-left : 0em;
+}
+ul.notes {
     padding-left : 2em;
 }
 ul.notes._not_user_page {
@@ -235,16 +246,17 @@ ul.notes._not_user_page {
 ul.notes._not_user_page li, li.user-line {
     margin-bottom : 1em;
 }
-ul.sources, ul.users, ul.authors  {
-    -webkit-padding-start : 0px;
-    padding-left : 0em;
-}
-li._nrama-note, li.add-a-note, li.user-line {
+li {
     display:block;
 }
 li.source {
-    display:block;
     padding-bottom : 2em;
+}
+li.tag {
+    display:block;
+    padding-bottom : 1em;
+    font-size : 16px;
+    padding-left : 2em;
 }
 textarea._nrama-note-content {
     background-color : inherit;

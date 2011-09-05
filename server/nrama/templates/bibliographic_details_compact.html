@@ -1,4 +1,4 @@
-<div class="bibliographic-details">
+<div class="bibliographic-details compact">
     <div>
         &mdash;
         {?AUTHOR}
@@ -7,11 +7,11 @@
                             class="author author_{@idx}{.}{/idx}"
                         >{.}</a>{@sep} and {/sep}{/AUTHOR}.
             </span>
+            {?YEAR}(<span class="year">{YEAR}</span>){/YEAR}
         {/AUTHOR}
         <a href="{baseURL}{query_user_url}/sources/{page_id|uc}">
             {TITLE}{^TITLE}{page_title}{^page_title}untitled{/page_title}{/TITLE}
         </a>
-        {?YEAR}(<span class="year">{YEAR}</span>){/YEAR}
     </div>
     <div>
         {?JOURNAL}
@@ -36,6 +36,8 @@
                 {/PAGES}
             </span>
         {/BOOKTITLE}
+    </div>
+    <div>
         {?url}
             <span>
                 <a href="{url}" target="_blank" class="title">{url}</a>
