@@ -87,6 +87,11 @@
             note_width : 150, //pixels
             max_quote_length : 5000,  //useful because prevents
             // -- styling
+            style : {   //applies to note_editor & dialogs
+                fontFamily : "Palatino, 'Palatino Linotype', Georgia, Times, 'Times New Roman', serif",
+                fontSize : '12px',
+                color : 'rgb(0,0,0)'
+            },
             note_style : {
                 'border' : '1px solid',
                 'background-color' : 'rgb(229,229,299)',    //default in case options.note_background_color fails
@@ -110,16 +115,30 @@
                 'resize' : 'none',      //remove draggable resize handle in chrome
                 'line-height' : '1.3em',
                 'background-color' : 'inherit',
-                'font-family' : 'Palatino, serif',
-                'font-size' : '12px',
-                'color' : 'rgb(0,0,0)',
                 'text-shadow' : '1px 1px 20px rgba(250,250,250,1), -1px -1px 20px rgba(250,250,250,1), 0 0 1px rgba(250,250,250,1)',
                 '-moz-text-shadow' : '1px 1px 20px rgba(250,250,250,1), -1px -1px 20px rgba(250,250,250,1), 0 0 1px rgba(250,250,250,1)',
                 '-webkit-text-shadow' : '1px 1px 20px rgba(250,250,250,1), -1px -1px 20px rgba(250,250,250,1), 0 0 1px rgba(250,250,250,1)'
+            },
+            simplemodal : {
+                autoResize: true,
+                overlayClose: true,
+                zIndex : 32000,
+                overlayCss : { 'background-color' : '#000' },
+                containerCss : {
+                    height : 'auto',
+                    backgroundColor : '#fff',
+                    border: '8px solid #444',
+                    padding: '12px'
+                },
+                onShow : function(){
+                    _.delay( function() { $('.simplemodal-container').css({height:'auto'}); }, 50 )
+                }
             }
         };
-        settings.note_style["width"] = settings.note_width+"px";
-        settings.note_editor_style['width'] = settings.note_width+"px";
+        settings.note_style.width = settings.note_width+"px";
+        settings.note_editor_style.width = settings.note_width+"px";
+        $.extend(settings.note_style, settings.style);
+        $.extend(settings.simplemodal.containerCss, settings.style);
         return settings;
     };
         
@@ -528,6 +547,7 @@
             var edit_note = $('<div></div').
                                 attr('id',note._id).
                                 addClass('_nrama-note').
+                                beResetCSS().
                                 css(pos_attrs).
                                 css(settings.note_style).
                                 css('z-index',_zindex_counter++).
@@ -550,7 +570,17 @@
         notes.undisplay = function(note) {
             $('#'+note._id).remove();
         };
-            
+
+        // -- call this to re-enable note when error saving or deleting
+        var _finally = function _finally($note, restore_background ){
+            var $textarea = $('textarea', $note);
+            //make changes to textarea possible & ensure they trigger updates
+            $textarea.removeAttr("disabled");
+            $textarea.unbind('blur', notes.update_on_blur).one('blur', notes.update_on_blur);  //make sure edits are saved
+            if( restore_background ) {
+                $textarea.parents('._nrama-note').css({backgroundColor:settings.note_background_color});
+            }
+        };
         /**
          * update new note = event handler for blur event on TEXTAREA of $note
          * This handles display, logic & persistence.
@@ -564,15 +594,6 @@
             $note = $textarea.parents('._nrama-note').first();
             $note.css('background-color', settings.persist_started_color);
             
-            // -- call this to re-enable note unless it's deleted
-            var _finally = function _finally($textarea, restore_background ){
-                //make changes to textarea possible & ensure they trigger updates
-                $textarea.removeAttr("disabled");
-                $textarea.unbind('blur', notes.update_on_blur).one('blur', notes.update_on_blur);  //make sure edits are saved
-                if( restore_background ) {
-                    $textarea.parents('._nrama-note').css({backgroundColor:settings.note_background_color});
-                }
-            };
             
             // -- delete note if note content is empty
             var new_content = $textarea.val();
@@ -587,7 +608,7 @@
             // -- if content unchanged, do nothing (so moving a note won't trigger a change)
             var old_content = note.content;
             if( old_content == new_content ) {
-                _finally($textarea, true);
+                _finally($note, true);
                 return;
             }
     
@@ -609,14 +630,14 @@
             notes.save(new_note, {clone_on_conflict:true}, function(error,data){
                 if( error ) {
                     $note.css({backgroundColor : settings.persist_failed_color});
-                    _finally($textarea, false);
+                    _finally($note, false);
                     return;
                 }
                 $.log("nrama_notes.update_on_blur: was persisted note _id:"+new_note._id+" for quote:"+new_note.quote_id);
                 $note.attr('id',new_note._id); //may have changed (save can clone)
                 $note = $('#'+new_note._id);   //have to update after changing id attribute
                 $note.data('nrama_note', new_note);
-                _finally( $('textarea',$note), true );
+                _finally( $note, true );
             });
         };
             
@@ -652,7 +673,7 @@
             var note = $note.data('nrama_note');
             persist.rm(note, function(error, data){
                 if( error ) {
-                    _debug({msg:'nrama_notes.remove --- error removing note', error:error});
+                    _finally($note, false);
                 } else {
                     $.log("nrama_notes.remove deleted note "+note_id+" from server.");
                     $('#'+note_id).hide('puff',{},300+Math.floor(Math.random()*600), function(){
@@ -772,15 +793,15 @@
          * dispaly a login dialog.
          * @param callback{Function} will be called with an error if the user cancels.
          */
-        ui.dialogs.login = function( username/*optional*/, callback ) {
+        ui.dialogs.login = function(username, msg/*optional*/, callback) {
             if( !callback ) {
-                callback = username || function(){};
-                username = '';
+                callback = msg;
+                msg = '';
             }
             var last_error = {message:'you cancelled'};  //report results of last error if user cancels
             var $div = $('<div><h2><a href="http://www.note-o-rama.com" target="_blank">Note-o-rama</a> : login</h2></div>');
             $div.append('<form id="login_form" action="/_session" method="POST">' +
-                '<div class="general_errors"></div>' +
+                '<div class="general_errors">'+msg+'</div>' +
                 '<div class="username field">' +
                     '<label for="id_name">Username</label>' +
                     '<input id="id_name" name="name" type="text" />' +
@@ -796,6 +817,7 @@
                     '<input type="submit" id="id_login" value="Login" />' +
                 '</div>' +
             '</form>');
+            $div.beResetCSS();
             $('.general_errors, .errors', $div).css({color:'red'});
             $('#id_name',$div).val(username||'');
             $('#id_cancel', $div).click(function () {
@@ -829,16 +851,12 @@
                 }
                 return false;
             });
-            $div.modal({
-                autoResize: true,
-                overlayClose: true,
-                overlayCss : { 'background-color' : '#000' },
-                containerCss : {
-                    'background-color' : '#fff',
-                    border: '8px solid #444',
-                    padding: '12px'
+            $div.modal(settings.simplemodal);
+            _.delay( function(){
+                if( username ) {
+                    $('#id_password').focus();
                 }
-            });
+            }, 50 );
         };
         
         ui.dialogs.warn_user_discrepancy = function(name, callback) {
@@ -895,16 +913,7 @@
                             $.modal.close();
                             success('ok');
                         });
-                        $div.modal({
-                            autoResize: true,
-                            overlayClose: true,
-                            overlayCss : { 'background-color' : '#000' },
-                            containerCss : {
-                                'background-color' : '#fff',
-                                border: '8px solid #444',
-                                padding: '12px'
-                            }
-                        });
+                        $div.beResetCSS().modal(settings.simplemodal);
                     }
                 }
             };
@@ -931,7 +940,7 @@
         var _wrap_unarray = function(fn){
             return function(){
                 var new_args = _.toArray(arguments[0]);
-                fn.apply(this, new_args);
+                fn.apply(null, new_args);
             }
         };
         var _wrap_rpc = function( method ) {
@@ -942,15 +951,40 @@
                     }
                     return arg;
                 });
-                method.apply(this, new_arguments);  
+                method.apply(null, new_arguments);  
             }
         }
-        nrama.db = {
-            saveDoc : _wrap_rpc( nrama._rpc.db_saveDoc ),
-            removeDoc : _wrap_rpc( nrama._rpc.db_removeDoc ),
-            getView : _wrap_rpc( nrama._rpc.db_getView ),
-            doUpdate : _wrap_rpc( nrama._rpc.db_doUpdate )
+        /**
+         * we also want to capture 403 (forbidden) errors so that the user can login
+         * caution : assumes last argument is the unique callback (as node js)
+         */
+        var _wrap_403_callback = function( callback ) {
+            return function(error, data) {
+                if( error && ( error.status === 403 || error.error === 'forbidden' ) ) {
+                    var user_id = '';
+                    try {
+                        user_id = error.message.slice(error.message.indexOf('user_id:')+8);
+                    } catch(e) {}
+                    $(document).trigger('nrama_403', user_id);
+                }
+                callback(error, data);
+            }
         };
+        var _wrap_403 = function( fn ) {
+            return function() {
+                var args = Array.prototype.slice.call(arguments);
+                args[args.length-1] = _wrap_403_callback( args[args.length-1] );
+                return fn.apply(null, args);
+            }
+        }
+        var _wrap = _.compose(_wrap_403, _wrap_rpc);
+        nrama.db = {
+            saveDoc : _wrap( nrama._rpc.db_saveDoc ),
+            removeDoc : _wrap( nrama._rpc.db_removeDoc ),
+            getView : _wrap( nrama._rpc.db_getView ),
+            doUpdate : _wrap( nrama._rpc.db_doUpdate )
+        };
+        // nb session 403s musn't get _wrap_403'd !
         nrama.session = {
             login : _wrap_rpc( nrama._rpc.session_login ),
             logout : _wrap_rpc( nrama._rpc.session_logout ),
@@ -1251,10 +1285,10 @@
     
             $.log('nrama: starting ...');
             nrama.ui.dialogs.login_if_necessary(function(error, ignore){
-                //using _.defer means waiting until callstack cleared
                 if( error ) {
                     nrama._debug({msg:'error logging in',error:error});
                 } else {
+                    //using _.defer means waiting until callstack cleared
                     _.defer(nrama.quotes.load, nrama.page_id, function(error, data){
                         _.defer(nrama.notes.load, nrama.page_id, nrama.default_callback );
                     });
@@ -1263,7 +1297,12 @@
             
             // --- configure events ---
             
-            //throttle2 is based on underscore but can't use their throttle as it calls fn AFTER timout
+            // deal with 403 Forbidden events (session expires, etc)
+            $(document).bind('nrama_403', function(e, user_id){
+                nrama.ui.dialogs.login(user_id, 'Please login and re-try.', nrama._debug);
+            });
+            
+            //throttle2 is based on underscore but _.throttle(fn) calls fn AFTER timout
             var throttle2 = function(func) {
                 var timeout;
                 return function() {

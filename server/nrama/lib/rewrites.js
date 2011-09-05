@@ -129,6 +129,17 @@ module.exports = [
         }
     },
     {
+        from : '/tags/:tag/recent',            //same as previous but with flow
+        to : '_list/flow/tags',
+        query : {
+            endkey : [":tag"],
+            startkey : [":tag", {}],
+            reduce : 'false',
+            descending : 'true',
+            include_docs : 'true'
+        }
+    },
+    {
         from : '/users/:user/tags',
         to : '_list/tags/tags_user',
         query : {
