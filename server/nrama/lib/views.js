@@ -180,17 +180,30 @@ exports.tags = {
  * for the flow, show notes by recency.  Allows a quote-centred view rather than
  *  source-centred.
  *
+ * Wasteful -- emits source for every note and again for every quote.
+ * Because quotes are emitted in order of CREATION (not in order notes are updated,
+ * this view ends up being out of order).
+ * If limited, there might be notes with missing quotes (this could happen where
+ * there is a delay between creating a quote and adding a note).
+ * (Could fix both problems by having updates to notes causing quotes to be updated
+ * too, just as sources are.)
+ *
  * Like tags, it provides note-quote-source triples and must be used with
  *  include_docs
  */ 
 exports.quotes = {
   map : function(doc) {
-    if( doc.type && doc.type == 'note' ) {
-      var note = doc;
-      if( note.user_id && note.source_id && note.quote_id && ( note.updated || note.created ) ) {
-        emit([ note.user_id, note.updated || note.created  ], null);                  //include the note iteself
-        emit([ note.user_id, note.updated || note.created ], {_id:note.source_id});  //include the source
-        emit([ note.user_id, note.updated || note.created ], {_id:note.quote_id});   //include the quote
+    if( doc.type && doc.user_id && doc.source_id && doc.updated ) {
+      if( doc.type == 'note' && doc.quote_id ) {
+        var note = doc;
+        emit([ note.user_id, note.updated ], null);                  //include the note iteself
+        emit([ note.user_id, note.updated ], {_id:note.source_id});  //include the source
+        //emit([ note.user_id, note.updated ], {_id:note.quote_id});   //include the quote
+      }
+      if( doc.type == 'quote' ) {
+        var quote = doc;
+        emit([ quote.user_id, quote.created ], null);
+        emit([ quote.user_id, quote.created ], {_id:quote.source_id})
       }
     }
   }
