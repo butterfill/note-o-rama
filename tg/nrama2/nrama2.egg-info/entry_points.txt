@@ -1,3 +1,0 @@
-[console_scripts]
-start-nrama2 = nrama2.commands:start
-

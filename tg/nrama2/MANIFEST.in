@@ -1,6 +1,0 @@
-include start-nrama2.py
-include *.cfg
-include nrama2/config/*.cfg
-recursive-include nrama2/templates *.html
-recursive-include nrama2/templates *.kid
-recursive-include nrama2/static *
