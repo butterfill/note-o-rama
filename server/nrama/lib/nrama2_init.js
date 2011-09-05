@@ -46,10 +46,8 @@ var _init = function(){
         };
     }
     var nrama = {};
-    nrama.uuid = function (){
-        return  'N'+uuid_sync().replace(/-/g,'');
-    };
-    nrama.settings = _.extend( nrama_constructors._make_settings(), {
+    nrama.uuid = nrama_constructors._make_uuid(uuid_sync);
+    nrama.settings = _.extend( nrama_constructors._make_settings( nrama.uuid ), {
         // -- internals
         is_embedded : false,     //set to false when being used on the server
         debug : true,

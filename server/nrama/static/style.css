@@ -14,10 +14,10 @@
     text-decoration : underline;
 }
 .bibliographic-details {
-    text-align : right;
 }
 div.bibliographic-details.compact, div.bibliographic-details.compact a {
     color : rgb(75,75,75);
+    text-align : right;
 }
 
 

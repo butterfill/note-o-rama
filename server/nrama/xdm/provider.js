@@ -70,18 +70,22 @@ $.each(session, function(key, method){
 var remote = {
     get_version : {},
     msg : {},
-    do_it : {}
+    modal : {}
 };
 var onReady = function(){
     //test1
-    //_rpc.get_version(function(version){
-    //    _rpc.msg('hello from remote to nrama client version '+version);
-    //});
+    /*
+    _rpc.get_version(function(version){
+        _rpc.msg('hello from remote to nrama client version '+version);
+    });
+    */
     
     //test2
-    //_rpc.do_it('var _eval_me='+test_dlg.toString()+';_eval_me()', function(result){
-    //    _rpc.msg(result);
-    //});
+    /*
+    _rpc.get_version( function(version){
+        _rpc.modal(make_modal_str(version));
+    });
+    */
 };
 var _rpc = new easyXDM.Rpc({ onReady:onReady }, {local:local, remote:remote} );
 
@@ -127,63 +131,20 @@ var expose = {
 
 
 /**
- * this is for testing do_it --- can be eval'd on the client
+ * this is for testing modal --- can be diplayed on the client
  *
-test_dlg = function(){
-    var div = $('<div><h2>Login</h2></div>');
-    div.append('<form id="login_form" action="/_session" method="POST">' +
-        '<div class="general_errors"></div>' +
-        '<div class="username field">' +
-            '<label for="id_name">Username</label>' +
-            '<input id="id_name" name="name" type="text" />' +
-            '<div class="errors"></div>' +
-        '</div>' +
-        '<div class="password field">' +
-            '<label for="id_password">Password</label>' +
-            '<input id="id_password" name="password" type="password" />' +
-            '<div class="errors"></div>' +
-        '</div>' +
-        '<div class="actions">' +
-            '<input type="submit" id="id_login" value="Login" />' +
-            '<input type="button" id="id_cancel" value="Cancel" />' +
-        '</div>' +
-    '</form>');
-    $('#id_cancel', div).click(function () {
-        success('cancel clicked');
-        $.modal.close();
-    });
-    $('form', div).submit(function (ev) {
-        ev.preventDefault();
-        var username = $('input[name="name"]', div).val();
-        var password = $('input[name="password"]', div).val();
-        console.log($('.username .errors', div));
-        $('.username .errors', div).text(
-            username ? '': 'Please enter a username'
-        );
-        $('.password .errors', div).text(
-            password ? '': 'Please enter a password'
-        );
-        if (username && password) {
-            session.login(username, password, function (err) {
-                $('.general_errors', div).text(err ? err.toString(): '');
-                if (!err) {
-                    $(div).fadeOut('slow', function () {
-                        $.modal.close();
-                    });
-                }
-            });
-        }
-        return false;
-    });
-    div.modal({
-        autoResize: true,
-        overlayClose: true,
-        overlayCss : { 'background-color' : '#000' },
-        containerCss : {
-            'background-color' : '#fff',
-            border: '8px solid #444',
-            padding: '12px'
-        }
-    });
-};
+var make_modal_str = function(version) {
+    var $modal = $('<div><h2>Update Needed</h2></div>');
+    $modal.append('<form id="info_form">' +
+            '<div class="info">' +
+                '<p>Please update your bookmarklet, this version ('+version+') is no longer supported</p>' +
+                '<p><a href="http://www.note-o-rama.com">get the new version</a></p>' +
+            '</div>' +
+            '<div class="actions">' +
+                '<input type="button" id="id_ok" value="OK" />' +
+            '</div>' +
+        '</form>');
+    modal_str=$modal.html();
+    return modal_str;
+}
 */

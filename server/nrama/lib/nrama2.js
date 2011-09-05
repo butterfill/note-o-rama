@@ -1,15 +1,11 @@
 /**
  * note-o-rama, second attempt
  * Copyright (c) 2011 Stephen A. Butterfill
- * 
- * I haven't decided what license to use yet, it will depend on what
- * I end up linking to.  For now if you want to use any of this, please
- * just email me (stephen.butterfill@gmail.com)
  *
  * For dependencies see lib.js
  *
  * To run as bookmarklet (change url; delete the 'now' param if not in developent mode):
- *   javascript:(function(){delete module;delete exports;_nrama_bkmklt=true;document.body.appendChild(document.createElement('script')).src='http://localhost:8888/nrama2_test/nrama2.js?now=new Date().getTime()'; })();
+ *   javascript:(function(){delete module;delete exports;_nrama_bkmklt=true;_nrama_user='steve';document.body.appendChild(document.createElement('script')).src='http://localhost:8888/nrama2_test/nrama2.js?now=new Date().getTime()'; })();
  *
  * To embed in page:
  *   <script src='lib.min.js" ></script>
@@ -53,20 +49,33 @@
     var _NRAMA_LIB_URL = "http://localhost:8888/nrama2_test/lib.min.js"; //where to load lib from (for bookmarklet only)
 
     /**
+     * fix uuids so that it doesn't include dashes (no good for couchDB)
+     * also include a trailing N to mark the source
+     */
+    exports._make_uuid = function(uuid) {
+        return function (use_b36/*optional*/){
+            if( use_b36 ) {
+                return parseInt(uuid().replace(/-/g,''), 16).toString(36);
+            } else {
+                return  uuid().replace(/-/g,'')+'N';
+            }
+        }
+    };
+
+    /**
      * these are exactly the settings for embedded mode (bkmrklt or <script>),
      * and they are the basis for server mode (some are overriden)
      */
-    var _make_settings = function(){
+    var _make_settings = function(nrama_uuid){
         var settings = {
             // -- internals
             is_embedded : true,     //set to false when being used on the server
             debug : true,
-            server_url : 'http://127.0.0.1:5984/',  //must include trailing slash
-            //server_url : 'http://noteorama.iriscouch.com/',
             db_name : 'nrama',
+            //xdm_url: 'http://noteorama.iriscouch.com/_design/nrama/_rewrite/xdm/provider.html',
             xdm_url : 'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.html',
             // -- user identification
-            user_id : 'steve@gmail.com', // '*'+nrama.uuid(),
+            user_id : '*'+nrama_uuid(true).slice(0,10), //default to random anonymous user
             password : 'new',   //TODO think of clever way to store this
             me_only : true,    //show only my notes and quotes
             // -- quotes & note settings
@@ -122,7 +131,8 @@
         var _debug = function(){};    //does nothing if not debugging
         if( settings.debug && typeof window !== 'undefined' ) {
             //window.$=jQuery;                        //<-- nb breaks noConflict
-            _debug = function _debug(map_or_array){
+            _debug = function _debug(){
+                var map_or_array = arguments.length == 1 ? arguments[0] : arguments;
                 $.each(map_or_array, function(key,val){
                       if( isFinite(key) ) {
                         key = 'a'+key;      //allows us to handle arrays
@@ -164,6 +174,17 @@
      */
     var _make_persist = function(db, session, uuid, _debug) {
         persist = {};
+
+        //log errors (used to wrap callbacks from db & session)
+        var _debug_wrap = function(name, callback) {
+            return function(error, data){
+                if( error ) {
+                    _debug({msg:'nrama_'+name+': error',error:error});
+                }
+                callback(error, data);
+            }
+        };
+    
         /**
          * save a note or a quote (or that JSON.stringify will work on, really).
          * NB: If successful, will update a _rev property on thing and insert _id
@@ -180,7 +201,6 @@
             var settings = $.extend(true, {}, defaults, options);
 
             db.saveDoc(thing, function(error, data){
-                _debug({msg:'nrama_persist.save ',error:error, data:data, settings:settings});
                 if( error ) {
                     if( settings.clone_on_conflict ) {
                         if( error.status == 409 || error.error == "conflict")  {
@@ -190,12 +210,11 @@
                         }
                     }
                     _debug({msg:'nrama_persist.save: error',error:error});
-                    callback(error, data);
-                    return;
+                } else {
+                    thing._rev = data.rev;
+                    thing._id = data.id;
                 }
-                thing._rev = data.rev;
-                thing._id = data.id;
-                callback(error, thing);
+                callback(error, data);
             });
         };
             
@@ -214,16 +233,16 @@
                 if( !error ) {
                     thing = cloned_thing;   //messy
                 }
-                callback(error,data);
+                callback(error,data);   
             });
         };
-    
+
         /**
          * assumes that thing.type (e.g. 'source') is the name of the couchdb update function
          * thing must have .type and ._id attributes
          */
         persist.update = function(thing, callback) {
-            db.doUpdate( thing, encodeURIComponent( thing.type ), callback);
+            db.doUpdate( thing, encodeURIComponent( thing.type ), _debug_wrap('persist.update', callback) );
         };
 
         /**
@@ -235,7 +254,7 @@
             if( !thing._rev ) {
                 callback(null, { deleted:false, message:'nrama_persist.rm did not delete because '+(thing.type ||'')+' '+(thing._id || '')+' has no _rev'});
             }
-            db.removeDoc(thing, callback);
+            db.removeDoc(thing, _debug_wrap('persist.rm',callback));
         };
             
         /**
@@ -264,7 +283,7 @@
                     query = {key:'["'+settings.page_id+'","'+settings.type+'","'+settings.user_id+'"]' };
                 }
             }
-            db.getView('pageId_type_userId', query, callback);
+            db.getView('pageId_type_userId', query, _debug_wrap('persist.load',callback));
         };
     
         return persist;
@@ -338,12 +357,10 @@
                 return;
             }
             sources.update(thing, function(error, data){
-                if(error){
-                    callback(error,data);
-                } else {
+                if(!error){
                     _update_memo.push(source_id);
-                    callback(error, data);
                 }
+                callback(error, data);
             });
         };
         
@@ -441,9 +458,9 @@
                 if( error ) {
                     $.log('error in nrama_notes.save, due to call to nrama_sources.update_once.')
                     callback(error, data);
-                    return;
+                } else {
+                    persist.save(note, options, callback);
                 }
-                persist.save(note, options, callback);
             });
         };
             
@@ -649,17 +666,18 @@
          * run after quotes have been loaded and displayed in case notes need positioning
          */
         notes.load = function(page_id, callback) {
+            var user_id = settings.me_only ? settings.user_id : undefined;
             persist.load({
                 page_id : page_id,
                 type : 'note',
-                user_id : settings.me_only ? settings.user_id : undefined
+                user_id : user_id
             }, function(error, data){
                 if( error ) {
                     _debug({msg:'nrama_notes.load error:', error:error})
                     callback(error, data);
                     return;
                 }
-                $.log('nrama_notes.load got ' + data.rows.length + ' notes from server');
+                $.log('nrama_notes.load got ' + data.rows.length + ' notes from server for user '+user_id);
                 $.each(data.rows, function(index,row){
                     var note = row.value;
                     notes.display(note, {focus:false});
@@ -685,14 +703,162 @@
         return notes;
     };
     
+    
+    
+    
+    /**
+     * for dialogs (todo -- move event handlers)
+     */
+    var _make_ui = function(settings, session, _debug){
+        var ui = {};
+        
+        var _update_user_id = function(data) {
+            if( data && data.userCtx && data.userCtx.name ) {
+                var logged_in_as = data.userCtx.name;
+                if( logged_in_as != settings.user_id ) {
+                    //username has changed
+                    ui.dialogs.warn_user_discrepancy(logged_in_as);
+                    settings.user_id = logged_in_as;
+                }
+            }
+        };
+        /** 
+         * may update settings.user_id.  may result in modal dialog warning
+         */
+        ui.info = function(callback){
+            session.info(function(error, data){
+                if( !error ) {
+                    _update_user_id(data);
+                }
+                callback(error,data);
+            });
+        };
+        /**
+         * may update settings.user_id.  may result in modal dialog warning
+         */
+        ui.login = function(username, password, callback){
+            session.login(username, password, function(error,data){
+                if( !error ) {
+                    _update_user_id(data);
+                }
+                callback(error,data);
+            });
+        };
+
+
+        ui.dialogs = {};
+        /**
+         * switch user_id if logged in; otherwise check whether configured for
+         * anonymous user and request user to log in if not.
+         */
+        ui.dialogs.login_if_necessary = function(callback) {
+            ui.info( function(error,data) {
+                if( data && data.userCtx && data.userCtx.name ) {
+                    callback(null, 'already logged in');
+                } else {
+                    //not logged in
+                    if( settings.user_id && settings.user_id[0] == '*' ) {
+                        //anonymous
+                        callback(null, 'anonymous user');
+                    } else {
+                        ui.dialogs.login(settings.user_id, callback);
+                    }
+                }
+            });
+        };
+        
+        /**
+         * dispaly a login dialog.
+         * @param callback{Function} will be called with an error if the user cancels.
+         */
+        ui.dialogs.login = function( username/*optional*/, callback ) {
+            if( !callback ) {
+                callback = username || function(){};
+                username = '';
+            }
+            var last_error = {message:'you cancelled'};  //report results of last error if user cancels
+            var $div = $('<div><h2><a href="http://www.note-o-rama.com" target="_blank">Note-o-rama</a> : login</h2></div>');
+            $div.append('<form id="login_form" action="/_session" method="POST">' +
+                '<div class="general_errors"></div>' +
+                '<div class="username field">' +
+                    '<label for="id_name">Username</label>' +
+                    '<input id="id_name" name="name" type="text" />' +
+                    '<div class="errors">&nbsp;</div>' +
+                '</div>' +
+                '<div class="password field">' +
+                    '<label for="id_password">Password</label>' +
+                    '<input id="id_password" name="password" type="password" />' +
+                    '<div class="errors">&nbsp;</div>' +
+                '</div>' +
+                '<div class="actions">' +
+                    '<input type="button" id="id_cancel" value="Cancel" />' +
+                    '<input type="submit" id="id_login" value="Login" />' +
+                '</div>' +
+            '</form>');
+            $('.general_errors, .errors', $div).css({color:'red'});
+            $('#id_name',$div).val(username||'');
+            $('#id_cancel', $div).click(function () {
+                $.modal.close();
+                callback(last_error);
+            });
+            $('form', $div).submit(function (ev) {
+                ev.preventDefault();
+                var username = $('input[name="name"]', $div).val();
+                var password = $('input[name="password"]', $div).val();
+                $('.username .errors', $div).text(
+                    username ? '': 'Please enter a username'
+                );
+                $('.password .errors', $div).text(
+                    password ? '': 'Please enter a password'
+                );
+                if (username && password) {
+                    ui.login(username, password, function (error, data) {
+                        _debug({error:error});
+                        if( error ) {
+                            last_error = error;
+                            var error_msg = error.message || "Error "+(error.status || '')+" logging in (network connection?)";
+                            $('.general_errors', $div).text(error_msg);
+                        } else {
+                            $($div).fadeOut('slow', function () {
+                                $.modal.close();
+                                callback(null, data);
+                            });
+                        }
+                    });
+                }
+                return false;
+            });
+            $div.modal({
+                autoResize: true,
+                overlayClose: true,
+                overlayCss : { 'background-color' : '#000' },
+                containerCss : {
+                    'background-color' : '#fff',
+                    border: '8px solid #444',
+                    padding: '12px'
+                }
+            });
+        };
+        
+        ui.dialogs.warn_user_discrepancy = function(name, callback) {
+            if( !callback ) { callback = function(){}; }
+            var who = settings.user_id[0]=='*' ? 'anonymous users' : settings.user_id;
+            $.log('user logged in as '+name+' but this bookmarklet was configured for '+who );
+            callback(null, 'not implemented yet');
+        };
+        return ui;
+    };
+
+
+
 
     var _nrama_init = function(nrama, $) {
-        //fix uuids so that it doesn't include dashes (no good for couchDB)
-        nrama.uuid = function (){
-            return  'N'+uuid().replace(/-/g,'');
-        };
+        nrama.uuid = exports._make_uuid(uuid);
     
-        nrama.settings = _make_settings();
+        nrama.settings = _make_settings(nrama.uuid);
+        if( typeof _nrama_user !== 'undefined' && _nrama_user ) {
+            nrama.settings.user_id = _nrama_user;
+        }
         nrama._debug = _make_debug(nrama.settings, window);
         nrama.log = _make_logging(nrama.settings, $);
 
@@ -701,20 +867,43 @@
             nrama._debug(arguments); 
         }
         
-        var _make_rpc = function(easyXDM) {
-            var local = {
-                get_version : {
-                    method : function(success, error){ success("0.2"); }
-                },
-                msg : {
-                    method : function(message, success, error){
+        /**
+         * builds the rpc transport necessary for xdm 
+         */
+        var _make_rpc = function(settings, easyXDM) {
+            var local = {};
+            local.get_version = {
+                method : function(success, error){ success("0.2"); }
+            };
+            local.msg = {
+                method : function(message, success, error){
+                    if( typeof message === 'string' ) {
                         alert(message);
-                        success();
+                        success('done');
                     }
-                },
-                do_it : {
-                    method : function(code_str, success, error){
-                        eval(code_str);
+                }
+            };
+            /**
+             * display a dialog using jQuery.simplemodal, minimsing xss vulnerabilities
+             */
+            local.modal = {
+                method : function(div_str, success, error){
+                    if( typeof div_str === 'string') {
+                        var $div = $('<div>'+div_str+'</div>');
+                        $('#id_ok', $div).click(function () {
+                            $.modal.close();
+                            success('ok');
+                        });
+                        $div.modal({
+                            autoResize: true,
+                            overlayClose: true,
+                            overlayCss : { 'background-color' : '#000' },
+                            containerCss : {
+                                'background-color' : '#fff',
+                                border: '8px solid #444',
+                                padding: '12px'
+                            }
+                        });
                     }
                 }
             };
@@ -729,9 +918,9 @@
                 session_info : {},
                 db_getView2 : {}
             };
-            return new easyXDM.Rpc({ remote:nrama.settings.xdm_url },{ remote:remote, local:local });
+            return new easyXDM.Rpc({ remote:settings.xdm_url },{ remote:remote, local:local });
         }
-        nrama._rpc = _make_rpc(easyXDM);
+        nrama._rpc = _make_rpc(nrama.settings, easyXDM);
         /**
          * some messing around to get rpc to work with kanso.db and kanso.session is needed.
          * (See the corresponding wrappers in xdm/provider.js|html to get full picture.)
@@ -941,18 +1130,18 @@
              * load quotes from server and display on this page
              */
             load : function load(page_id, callback) {
-                $.log('nrama starting to load quotes ...');
+                var user_id = nrama.settings.me_only ? nrama.settings.user_id : undefined;
                 nrama.persist.load({
                     page_id : page_id,
                     type : 'quote',
-                    user_id : nrama.settings.me_only ? nrama.settings.user_id : undefined
+                    user_id : user_id
                 }, function(error, data){
                     if( error ) {
                         nrama._debug({msg:'nrama.quotes.load: error loading quotes', error:error});
                         callback(error);
                         return;
                     }
-                    $.log('nrama loaded ' + data.rows.length + ' quotes from server');
+                    $.log('nrama_quotes.load got ' + data.rows.length + ' quotes from server for user '+user_id);
                     //need to sort quotes by the time they were added to page for best chance of displaying them
                     var _sorter = function(a,b){ return a.value.created - b.value.created };
                     data.rows.sort(_sorter);
@@ -1029,6 +1218,8 @@
         
         nrama.notes = _make_notes(nrama.settings, nrama.uuid, nrama.persist,
                                   nrama.sources, nrama.quotes, nrama._debug);
+        
+        nrama.ui = _make_ui(nrama.settings, nrama.session, nrama._debug);
 
         /**
          * main setup:
@@ -1057,10 +1248,16 @@
     
             rangy.init();
     
-            $.log('nrama: loading notes and quotes ...');
-            //using _.defer just means waiting until callstack cleared
-            _.defer(nrama.quotes.load, nrama.page_id, function(error, data){
-                _.defer(nrama.notes.load, nrama.page_id, nrama.default_callback );
+            $.log('nrama: starting ...');
+            nrama.ui.dialogs.login_if_necessary(function(error, ignore){
+                //using _.defer means waiting until callstack cleared
+                if( error ) {
+                    nrama._debug({msg:'error logging in',error:error});
+                } else {
+                    _.defer(nrama.quotes.load, nrama.page_id, function(error, data){
+                        _.defer(nrama.notes.load, nrama.page_id, nrama.default_callback );
+                    });
+                }
             });
             
             // --- configure events ---
@@ -1193,7 +1390,11 @@
                 //run as embedded <script> 
                 _nrama_init(exports, jQuery);
             } else {
-                // run in bookmarklet mode : load libraries & only start work after they loaded
+                // run in bookmarklet mode
+                // disable existing javascript (thank you http://javascript.about.com/library/bldis.htm)
+                //var d=document;
+                //while((el=d.getElementsByTagName('script')).length){el[0].parentNode.removeChild(el[0]);}
+                // load libraries & only start work after they loaded
                 // thank you http://stackoverflow.com/questions/756382/bookmarklet-wait-until-javascript-is-loaded
                 //from jQuery ajaxTransport
                 var loadScript2 = function(url, callback) {
