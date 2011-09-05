@@ -29,7 +29,7 @@ module.exports = [
     },
     {
         from : '/users/:user',      //currently all sources for a particular user, probably modified in future
-        to : '_list/sources/userId_source',
+        to : '_list/flow/quotes',
         query : {
             end_key: [":user"],
             start_key : [":user", {}],

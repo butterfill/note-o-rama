@@ -1,0 +1,95 @@
+{>"user_header.html"/}
+{<what}notes{/what}
+<div class="navigation" >
+    {^is_users_own_page}
+        {?userCtx.name}
+            {?query_user}
+                -- see &amp; edit <a href="{baseURL}/users/{userCtx.name|uc}{query_source_url}{query_tag_url}">your notes {?query_tag}with this tag{/query_tag}{?query_source}on this source{/query_source}</a>; <br />
+            {:else}
+                {^no_sources}
+                    -- see &amp; edit <a href="{baseURL}/users/{userCtx.name|uc}{query_source_url}{query_tag_url}">only your notes {?query_tag}with this tag{/query_tag}{?query_source}on this source{/query_source}</a>; <br />
+                {:else}
+                {/no_sources}
+            {/query_user}
+        {:else}
+            {?query_user}
+                -- see <a href="{baseURL}{query_source_url}">everyone's notes on this</a>; <br />
+            {/query_user}
+        {/userCtx.name}
+    {/is_users_own_page}
+    
+    {^is_users_own_page}
+        {?query_user}
+            --        
+            see
+            <a href="{baseURL}{query_user_url}/sources">{query_user}'s sources</a>,
+            <a href="{baseURL}{query_user_url}/authors">authors</a> or
+            <a href="{baseURL}{query_user_url}/tags">tags</a>{?userCtx.name}; {/userCtx.name}
+        {:else}
+            {! the following is duplicated just belwo !}
+            {?userCtx.name}
+                --        {! this assumes we just displayed something, false if not a /users/user path and there are no sources !}
+                go to 
+                <a href="{baseURL}/users/{userCtx.name|uc}/sources">your sources</a>,
+                <a href="{baseURL}/users/{userCtx.name|uc}/authors">authors</a> or
+                <a href="{baseURL}/users/{userCtx.name|uc}/tags">tags</a> 
+            {/userCtx.name}
+        {/query_user}
+    {:else}
+        {?userCtx.name}
+            --        {! this assumes we just displayed something, false if not a /users/user path and there are no sources !}
+            go to 
+            <a href="{baseURL}/users/{userCtx.name|uc}/sources">your sources</a>,
+            <a href="{baseURL}/users/{userCtx.name|uc}/authors">authors</a> or
+            <a href="{baseURL}/users/{userCtx.name|uc}/tags">tags</a> 
+        {/userCtx.name}
+    {/is_users_own_page}
+
+</div>
+
+{#quotes}
+    <div class="_nrama-quote" id="{hash}" >
+        <div class="quote-line flow">
+            "<span class="quote-content">{content}</span>"
+            {! TODO add-a-note should be possible provided logged in !}
+            {?is_users_own_page}
+                <a class="add-a-note">[+]</a>
+                {! TODO re-quote should be possible provided logged in 
+                    [&amp;re-quote]
+                !}
+            {/is_users_own_page}
+        </div>
+        {! [{page_order}] !}
+        <div class="source-for-single-quote">
+            {#source}
+                <div class="citation">{>"bibliographic_details_compact.html"/}</div>
+            {/source}
+            <div class="cited-by">
+                {^query_user}
+                    [cited by
+                    {#users}
+                        <span class='quote-user_id'><a href="{baseURL}/users/{.|uc}">{.}</a></span>{@sep}, {/sep}
+                    {/users}]
+                {/query_user}
+            </div>
+        </div>
+        <ul class="notes _sort-me {^is_users_own_page}_not_user_page{/is_users_own_page}">
+            {#notes}
+                <li id="{_id}" class="_nrama-note">
+                    {?is_users_own_page}
+                        <textarea class="_nrama-note-content" rows="1">{content}</textarea>
+                    {:else}
+                        {^query_user}
+                            <span class='quote-user_id'><a href="{baseURL}/users/{user_id|uc}">{user_id}</a></span>]
+                        {/query_user}
+                        <span class="_nrama-note-content">{content}</span>
+                    {/is_users_own_page}
+                </li>
+            {/notes}
+        </ul>
+    </div>
+{/quotes}
+
+
+
+{>"footer_event.html"/}

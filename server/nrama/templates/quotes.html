@@ -32,7 +32,7 @@
             {?userCtx.name}
                 <br />--        {! this assumes we just displayed something, false if not a /users/user path and there are no sources !}
                 go to 
-                <a href="{baseURL}/users/{userCtx.name|uc}">your sources</a>,
+                <a href="{baseURL}/users/{userCtx.name|uc}/sources">your sources</a>,
                 <a href="{baseURL}/users/{userCtx.name|uc}/authors">authors</a> or
                 <a href="{baseURL}/users/{userCtx.name|uc}/tags">tags</a> 
             {/userCtx.name}
@@ -41,7 +41,7 @@
         {?userCtx.name}
             <br />--        {! this assumes we just displayed something, false if not a /users/user path and there are no sources !}
             go to 
-            <a href="{baseURL}/users/{userCtx.name|uc}">your sources</a>,
+            <a href="{baseURL}/users/{userCtx.name|uc}/sources">your sources</a>,
             <a href="{baseURL}/users/{userCtx.name|uc}/authors">authors</a> or
             <a href="{baseURL}/users/{userCtx.name|uc}/tags">tags</a> 
         {/userCtx.name}

@@ -389,6 +389,7 @@
                 width : settings.note_width,
                 page_id : quote.page_id,  
                 created : new Date().getTime(),
+                updated : new Date().getTime(),
                 user_id : quote.user_id
             };
             new_note.source_id = sources.calculate_id({

@@ -187,10 +187,10 @@ exports.quotes = {
   map : function(doc) {
     if( doc.type && doc.type == 'note' ) {
       var note = doc;
-      if( note.user_id && note.source_id && note.quote_id && note.updated) {
-        emit([ note.user_id, note.updated ], null);                  //include the note iteself
-        emit([ note.user_id, note.updated ], {_id:note.source_id});  //include the source
-        emit([ note.user_id, note.updated ], {_id:note.quote_id});   //include the quote
+      if( note.user_id && note.source_id && note.quote_id && ( note.updated || note.created ) ) {
+        emit([ note.user_id, note.updated || note.created  ], null);                  //include the note iteself
+        emit([ note.user_id, note.updated || note.created ], {_id:note.source_id});  //include the source
+        emit([ note.user_id, note.updated || note.created ], {_id:note.quote_id});   //include the quote
       }
     }
   }

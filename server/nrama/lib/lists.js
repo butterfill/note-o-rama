@@ -95,7 +95,7 @@ exports.all_users = function (head, req) {
         }).extend( make_universal_template_data(req) )
     );
 
-    return {title: 'Note-o-rama : all users', content: content};
+    return {title: make_title('users',req), content: content};
 
 };
 
@@ -217,13 +217,15 @@ exports.tags = function(head, req) {
     return {title: make_title('tags',req), content: content};
 }
 
-
+/**
+ * Written for single or multi-users.
+ * TODO factor out common parts with exports.quotes
+ */
 exports.flow = function(head, req) {
     start({code: 200, headers: {'Content-Type': 'text/html'}});
 
-    var find_source = {};   //indexed by page_id, the first source we find gets priority
-    var find_quote = {};    //indexed by quote_hash 
-    var notes_for_quotes = {};
+    var find_source = {};   //indexed by _id
+    var find_quote = {};    //indexed by quote_hash, priority to the first we find
     var find_note = {}; //indexed by _id
    
     var row = getRow();
@@ -232,12 +234,8 @@ exports.flow = function(head, req) {
         
         if( thing.type == 'source' ) {
             var source = thing;
-            if( !find_source[source.page_id] ) {
-                find_source[source.page_id] = source;
-                source.updated_time = new Date(source.updated).toISOString();   //nb should not persist this property
-                source.users = [];          //nb should not persist this property
-            }
-            find_source[source.page_id].users.push(source.user_id);
+            find_source[source._id] = source;
+            source.updated_time = new Date(source.updated).toISOString();   //nb should not persist this property
         }
         if( thing.type == 'quote' ) {
             var quote = thing;
@@ -250,27 +248,41 @@ exports.flow = function(head, req) {
         if( thing.type == 'note' ) {
             var note = thing;
             find_note[note._id] = note;
-            if( !notes_for_quotes[note.quote_hash]  ) {
-                notes_for_quotes[note.quote_hash] = [];
-            }
-            notes_for_quotes[note.quote_hash].push(note);
         }
         
         row = getRow();
     }
 
-    // -- attach notes to quotes
-    var quotes = _(find_quote).values();
-    _(quotes).each(function(quote) {
-        quote.notes = notes_for_quotes[quote.hash] || [];
-        var source = find_source[quote.page_id];
-        if( !source.quotes ) {
-            source.quotes = [];
-        }
-        source.quotes.push(quote);
+    //attach notes to quotes
+    var notes = _.values(find_note);
+    _.each(notes, function(note) {
+        var quote = find_quote[note.quote_hash];
+        if( !quote.notes ) quote.notes = [];
+        quote.notes.push(note);
     });
-    var sources = _(find_source).values();
     
+    //attach sources to quotes
+    var quotes = _.values(find_quote);
+    _.each(quotes, function(quote){
+        quote.source = find_source[quote.source_id]; 
+    });
+    
+    if( req.client ) {
+        window.quotes = quotes; //TODO debug only
+
+        $(document).one('nrama_page_loaded', function(){
+            $('._sort-me').sortlist();
+            $('textarea._nrama-note-content').autogrow();
+        });
+    }
+    
+    var content = templates.render('flow.html', req, _({
+            quotes : quotes
+        }).extend( make_universal_template_data(req) )
+    );
+
+    return {title: make_title('flow',req), content: content};
+
 }
 
 

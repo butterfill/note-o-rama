@@ -148,6 +148,10 @@ div#session {
  * for the content
  */
 
+abbr {
+    border : none;
+}
+
 body {
     font-size: 14px;
     font-family: Palatino, 'Palatino Linotype', Georgia, Times, 'Times New Roman', serif;
@@ -197,8 +201,24 @@ a:hover .icon {
     text-decoration: none;
 }
 
-.title-line {
+/* title within source display */
+.source .title-line {
     font-size : 18px;
+}
+
+/* source within quote */
+._nrama-quote .title-line {
+    font-size : 12px;
+    text-align : right;
+}
+.source-for-single-quote {
+    font-size : 12px;
+    text-align : right;
+}
+/* quote in the flow -- bigger than usual */
+.quote-line.flow {
+    font-size : 120%;
+    padding-top : 1em;
 }
 
 ._nrama-note-content {

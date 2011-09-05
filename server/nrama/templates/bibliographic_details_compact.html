@@ -1,0 +1,50 @@
+<div class="bibliographic-details">
+    <div>
+        &mdash;
+        {?AUTHOR}
+            <span class="authors">
+                {#AUTHOR}<a href="{baseURL}{query_user_url}/authors/{.|uc}"
+                            class="author author_{@idx}{.}{/idx}"
+                        >{.}</a>{@sep} and {/sep}{/AUTHOR}.
+            </span>
+        {/AUTHOR}
+        <a href="{baseURL}{query_user_url}/sources/{page_id|uc}">
+            {TITLE}{^TITLE}{page_title}{^page_title}untitled{/page_title}{/TITLE}
+        </a>
+        {?YEAR}(<span class="year">{YEAR}</span>){/YEAR}
+    </div>
+    <div>
+        {?JOURNAL}
+            <span>
+                <span class="journal">{JOURNAL}</span>
+                {VOLUME}({NUMBER}).
+                {?PAGES}
+                    pp. <span class="PAGES">{PAGES}</span>.
+                {/PAGES}
+            </span>
+        {/JOURNAL}
+        {?BOOKTITLE}
+            <span>
+                In <span class="booktitle">{BOOKTITLE}</span>
+                {?EDITOR}
+                    (eds.) <span class="editor">{EDITOR}</span>.
+                {/EDITOR}
+                <span class="publisher">{PUBLISHER}</span>:
+                <span class="address">{ADDRESS}</span>.
+                {?PAGES}
+                    pp. <span class="PAGES">{PAGES}</span>.
+                {/PAGES}
+            </span>
+        {/BOOKTITLE}
+        {?url}
+            <span>
+                <a href="{url}" target="_blank" class="title">{url}</a>
+            </span>
+        {/url}
+    </div>
+    {?updated_time}
+        <div>
+            Updated <abbr class="_timeago" title="{updated_time}">{updated_time}</abbr>.
+        </div>
+    {/updated_time}
+</div>

@@ -52,9 +52,9 @@ events.on('updateFailure', function (err, info, req, res, doc) {
  * document has been rendered by the client (and not after rendering by the server)
  */
 events.on('afterResponse', function(err, info, req, res, doc) {
-		if( typeof($)!='undefined' ) {
-      $('._timeago').timeago();
-		}
+	if( typeof $ !=='undefined' ) {
+        $('._timeago').timeago();
+	}
     
 });
 
