@@ -220,6 +220,7 @@ exports.tags = function(head, req) {
 /**
  * Written for single or multi-users.
  * TODO factor out common parts with exports.quotes
+ * (most of this is duplicated, and the nrama part is VERBATIM)
  */
 exports.flow = function(head, req) {
     start({code: 200, headers: {'Content-Type': 'text/html'}});
@@ -290,7 +291,7 @@ exports.flow = function(head, req) {
     );
 
 
-    // -- configure nrama, attach event listners
+    // -- configure nrama, attach event listners (copied verbatim from exports.quotes)
     if( req.client ) {
         
         var nrama = nrama_init(find_source);
@@ -336,7 +337,7 @@ exports.flow = function(head, req) {
                 var quote = find_quote[ $quote.attr('id') ];
                 if( quote.user_id[0] != '*' ) {
                     if( !req.userCtx || req.userCtx.name != quote.user_id ) {
-                        console.log('cannot delete another users quotes');
+                        console.log("cannot delete another users' quotes");
                         return;
                     }
                 }

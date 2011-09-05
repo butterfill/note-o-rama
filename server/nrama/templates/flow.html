@@ -8,12 +8,7 @@
             {:else}
                 {^no_sources}
                     -- see &amp; edit <a href="{baseURL}/users/{userCtx.name|uc}{query_source_url}{query_tag_url}">only your notes {?query_tag}with this tag{/query_tag}{?query_source}on this source{/query_source}</a>; <br />
-                {:else}
                 {/no_sources}
-            {/query_user}
-        {:else}
-            {?query_user}
-                -- see <a href="{baseURL}{query_source_url}">everyone's notes on this</a>; <br />
             {/query_user}
         {/userCtx.name}
     {/is_users_own_page}

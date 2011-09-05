@@ -1,6 +1,6 @@
 /**
  * note-o-rama, second attempt
- * Copyright (c) 2011 Stephen A. Butterfill, http://note-o-rama.com
+ * Copyright (c) 2011 Stephen A. Butterfill
  * 
  * I haven't decided what license to use yet, it will depend on what
  * I end up linking to.  For now if you want to use any of this, please
@@ -25,6 +25,23 @@
  *
  * TODO -- load settings from server for logged-in users
  */
+
+/*
+    This file is part of Note-o-rama.
+
+    Note-o-rama is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Note-o-rama is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Note-o-rama.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * Wrapping for both <script> and commonJS require() use
