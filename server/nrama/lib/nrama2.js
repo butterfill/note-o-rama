@@ -77,6 +77,7 @@
             db_name : 'nrama',
             //xdm_url: 'http://noteorama.iriscouch.com/_design/nrama/_rewrite/xdm/provider.html',
             xdm_url : 'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.html',
+            //xdm_url : 'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.debug.html',
             // -- user identification
             user_id : '*'+nrama_uuid(true).slice(0,10), //default to random anonymous user
             password : 'new',   //TODO think of clever way to store this

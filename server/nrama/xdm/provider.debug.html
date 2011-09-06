@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+  <head>
+    <title>nrama xdm-couchdb provider</title>
+    <script type="text/javascript" src="jquery.min.js"></script>
+    <!-- for couchdb -->
+    <script type="text/javascript" >
+       // settings required for db.ex-kanso.js & session.ex-kanso.js
+       // NB change these
+       settings = {
+           name : 'nrama',         //should be same as 'name' in kanso.json in the root of your project
+           baseURL : '/nrama/_design/nrama/_rewrite'    //used to build url for requests
+       }
+    </script>
+    <script type="text/javascript" src="db.ex-kanso.js"></script>
+    <script type="text/javascript" src="session.ex-kanso.js"></script>
+    <!-- for xdm -->
+    <script type="text/javascript" src="easyXDM.min.js"></script>
+    <script type="text/javascript">
+      easyXDM.DomHelper.requiresJSON("json2.js");
+    </script>
+    
+    <!-- exposes functions through rpc -->
+    <script src="provider.js"></script>
+
+  </head>
+  <body>
+    <script>
+      //to help checking its working when loaded in the browser
+      cb=function(){ console.log('success'); for(i in arguments){ console.log(i+':'+arguments[i]); window['a'+i]=arguments[i]; } };
+      cbe=function(){ console.log('error'); for(i in arguments){ console.log(i+':'+arguments[i]); window['a'+i]=arguments[i]; }  };
+      o={created:new Date().getTime(),field:'value for msteve',anum:Math.random(1)*10};o.anum
+    </script>
+  </body>
+</html>
+
+
