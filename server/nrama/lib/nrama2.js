@@ -46,7 +46,9 @@
  * is to allow checking nrama not already loaded, see below).
  */
 (function(exports){
-    var _NRAMA_LIB_URL = "http://localhost:5984/nrama/_design/nrama/bkmrklt/lib.min.js"; //where to load lib from (for bookmarklet only)
+    
+    var _NRAMA_LIB_URL = "http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/lib.min.js"; //where to load lib from (for bookmarklet only)
+    //var _NRAMA_LIB_URL = "http://localhost:5984/nrama/_design/nrama/bkmrklt/lib.min.js"; //where to load lib from (for bookmarklet only)
 
     /**
      * fix uuids so that it doesn't include dashes (no good for couchDB)
@@ -75,8 +77,7 @@
             is_embedded : true,     //set to false when being used on the server
             debug : true,
             db_name : 'nrama',
-            //xdm_url: 'http://noteorama.iriscouch.com/_design/nrama/_rewrite/xdm/provider.html',
-            xdm_url : 'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.html',
+            xdm_url: 'http://noteorama.iriscouch.com/nrama/_design/nrama/_rewrite/xdm/provider.html',
             //xdm_url : 'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.debug.html',
             // -- user identification
             user_id : '*'+nrama_uuid(true).slice(0,10), //default to random anonymous user
@@ -1352,6 +1353,11 @@
              * In future this might be doi or similar
              */
             nrama.settings.page_id = window.location.protocol+"//"+window.location.host+window.location.pathname;  //the url with no ?query or #anchor details
+            //remove trailing slash
+            var last = nrama.settings.page_id.length-1;
+            if( nrama.settings.page_id[last]=='/' ) {
+                nrama.settings.page_id = nrama.settings.page_id.slice(0,last);
+            }
             
             /**
              * this is the node within which notes and quotes are possible and

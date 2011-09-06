@@ -15,7 +15,7 @@ var events = require('kanso/events'),
 
 /**
  * The init method fires when the app is initially loaded from a page rendered
- * by CouchDB.
+ * by CouchDB.  (DOESN'T SEEM TO WORK)
  */
 events.on('init', function () {
     bindSessionControls();
@@ -29,7 +29,7 @@ events.on('init', function () {
  */
 events.on('sessionChange', function (userCtx, req) {
     $('#session').replaceWith(templates.render('session.html', req, userCtx));
-    bindSessionControls();
+    $('#registration').replaceWith(templates.render('registration.html', req, userCtx));
 });
 
 
@@ -57,18 +57,35 @@ events.on('afterResponse', function(info, req, res) {
         $('._sort-me').sortlist();
         $('textarea._nrama-note-content').autogrow();
 	}
-    
 });
 
 
-// --- taken from the kanso admin app
+/**
+ * --- modified from the kanso admin app
+ * it's live = call only once
+ */
+var simplemodal_settings = {
+    autoResize: true,
+    overlayClose: false,
+    zIndex : 32000,
+    overlayCss : { 'background-color' : '#000' },
+    containerCss : {
+        height : 'auto',
+        backgroundColor : '#fff',
+        border: '8px solid #444',
+        padding: '34px'
+    },
+    onShow : function(){
+        _.delay( function() { $('.simplemodal-container').css({height:'auto'}); }, 50 )
+    }
+};
 var bindSessionControls = function () {
-    $('#session .logout a').click(function (ev) {
+    $('#session .logout a').die().live('click', function (ev) {
         ev.preventDefault();
         session.logout();
         return false;
     });
-    $('#session .login a').click(function (ev) {
+    $('.login a').die().live('click', function (ev) {
         ev.preventDefault();
         var div = $('<div><h2>Login</h2></div>');
         div.append('<form id="login_form" action="/_session" method="POST">' +
@@ -76,12 +93,12 @@ var bindSessionControls = function () {
             '<div class="username field">' +
                 '<label for="id_name">Username</label>' +
                 '<input id="id_name" name="name" type="text" />' +
-                '<div class="errors"></div>' +
+                '<div class="errors">&nbsp;</div>' +
             '</div>' +
             '<div class="password field">' +
                 '<label for="id_password">Password</label>' +
                 '<input id="id_password" name="password" type="password" />' +
-                '<div class="errors"></div>' +
+                '<div class="errors">&nbsp;</div>' +
             '</div>' +
             '<div class="actions">' +
                 '<input type="button" id="id_cancel" value="Cancel" />' +
@@ -114,10 +131,10 @@ var bindSessionControls = function () {
             }
             return false;
         });
-        div.modal({autoResize: true, overlayClose: true});
+        div.modal(simplemodal_settings);
         return false;
     });
-    $('#session .signup a').click(function (ev) {
+    $('.signup a').die().live('click', function (ev) {
         ev.preventDefault();
         var div = $('<div><h2>Create an account</h2></div>');
         div.append("<p>It's free.</p>");
@@ -126,12 +143,12 @@ var bindSessionControls = function () {
             '<div class="username field">' +
                 '<label for="id_name">Username</label>' +
                 '<input id="id_name" name="name" type="text" />' +
-                '<div class="errors"></div>' +
+                '<div class="errors">&nbsp;</div>' +
             '</div>' +
             '<div class="password field">' +
                 '<label for="id_password">Password</label>' +
                 '<input id="id_password" name="password" type="password" />' +
-                '<div class="errors"></div>' +
+                '<div class="errors">&nbsp;</div>' +
             '</div>' +
             '<div class="actions">' +
                 '<input type="button" id="id_cancel" value="Cancel" />' +
@@ -153,14 +170,15 @@ var bindSessionControls = function () {
                 password ? '': 'Please enter a password'
             );
             if (username && password) {
-                session.signup(username, password, function (err) {
-                    $('.general_errors', div).text(err ? err.toString(): '');
-                    if( err.status === 409 || err.error === 'conflict' ) {
-                        $('.general_errors', div).text('That username is already taken');
-                    }
-                    if (!err) {
-                        session.login(username, password, function (err) {
-                            $('.general_errors', div).text(err ? err.toString(): '');
+                session.signup(username, password, function (error) {
+                    $('.general_errors', div).text(error ? error.toString(): '');
+                    if( error ) {
+                        if( error.status === 409 || error.error === 'conflict' ) {
+                            $('.general_errors', div).text('That username is already taken');
+                        }
+                    } else {
+                        session.login(username, password, function (error) {
+                            $('.general_errors', div).text(error ? error.toString(): '');
                             $(div).fadeOut('slow', function () {
                                 $.modal.close();
                             });
@@ -170,7 +188,7 @@ var bindSessionControls = function () {
             }
             return false;
         });
-        div.modal({autoResize: true, overlayClose: true});
+        div.modal(simplemodal_settings);
         return false;
     });
 };

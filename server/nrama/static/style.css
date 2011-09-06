@@ -37,7 +37,10 @@ a:hover {
     background-color : #F2F2F2;
     text-shadow: 0 0 3px rgb(255,255,255), 0 0 1px rgb(255,255,255);
 }
-
+.instructions a {
+    text-decoration: underline;
+    color : #08298A;
+}
 
 
 /**

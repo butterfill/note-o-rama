@@ -1,0 +1,85 @@
+{#userCtx}
+  <div id="registration">
+    
+    <div class="column-container" style="position:relative;">
+      <div class="left-column"
+           style="width: 375px" >
+        <div class="left-column-inner"
+             style="padding-right: 15px;">
+            <h2 >Get it</h2>
+              <p>Step 1: 
+                {^name}
+                  (optional)
+                  <span class="signup"><a href="#">Sign up</a></span>
+                  or
+                  <span class="login"><a href="#">login</a></span>.
+                {:else}
+                  done! (welcome {name})
+                {/name}
+                <br />
+                <span {?name}style="color:grey; text-decoration: line-through;"{/name}>
+                  (You don't need to sign up, but if you choose not to others may edit
+                  or delete your notes.)
+                <span>
+              </p>
+            
+              <p>Step 2: drag the link below to the bookmark bar in your browser (or otherwise bookmark it).</p>
+              
+              <p style="text-align:center">
+                {^name}
+                <a href="javascript:(function(){delete module;delete exports;_nrama_bkmklt=true;{?anon_user_name}_nrama_user='{anon_user_name}';{/anon_user_name}document.body.appendChild(document.createElement('script')).src='http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/nrama2.js'; })();">
+                  Note-o-rama Bookmarklet -- Anon. User {anon_user_name}
+                </a>
+                {:else}
+                <a href="javascript:(function(){delete module;delete exports;_nrama_bkmklt=true;_nrama_user='{name}';document.body.appendChild(document.createElement('script')).src='http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/nrama2.js'; })();">
+                  Note-o-rama Bookmarklet -- {name}
+                </a>
+                {/name}
+              </p>
+            </div>
+          </div>
+        
+        <div class="right-column"
+             style="position:absolute; right:0; top:0; width: 374px;
+                    border-left: 1px solid #BBB;
+                    {?name}color:grey; text-decoration: line-through;{/name}">
+            <div class="right-column-inner"
+                 style="padding-left: 25px" >
+                <h2 style="margin-top: 0;">... or try it first</h2>
+                <p>Click to
+                    {^name}
+                    <a href="javascript:(function(){delete module;delete exports;_nrama_bkmklt=true;_nrama_user='*tryit';document.body.appendChild(document.createElement('script')).src='http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/nrama2.js'; })();">
+                        enable note-o-rama for this page.
+                    </a>
+                    {:else}
+                        enable note-o-rama for this page.
+                    {/name}
+                </p>
+                <ul class="instructions" >
+                    <li>Selecting text highlights it and adds it to
+                        <a href="{baseURL}/users/{^name}*tryit{:else}{name|uc}{/name}">
+                            your quotes
+                        </a>
+                    </li>
+                    <li>Clicking highlighted text adds a note to the page.
+                    </li>
+                    <li>You can
+                        <a href="{baseURL}/users/{^name}*tryit{:else}{name|uc}{/name}">
+                            review your notes
+                        </a>
+                    </li>
+                    <li>If you come back to this page, notes will
+                        re-load when you
+                        {^name}
+                          <a href="javascript:(function(){delete module;delete exports;_nrama_bkmklt=true;_nrama_user='*tryit';document.body.appendChild(document.createElement('script')).src='http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/nrama2.js'; })();">
+                              enable note-o-rama</a>.
+                        {:else}
+                          enable note-o-rama.
+                        {/name}
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+  </div>
+{/userCtx}

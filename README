@@ -1,13 +1,6 @@
-this is note-o-rama, a second attempt
+This is note-o-rama, a second attempt.
 
-This isn't ready for publicity yet.  Almost nothing works yet.  
-For now it's only on github as my personal backup.
+The client part works as a javascript bookmarklet (browser extensions might follow).
 
-So far I'm only experimenting with the javascript, browser-side code.
-(There will be new server-side code 
-if I get around to re-writing that too; but the new client code
-will probably work with the old server given a couple of changes.)
-It's going to work as a javascript bookmarklet
-it's going to work in all browsers.
-This time it will be simple, like (old) readability.
+The server part runs on couchdb, and uses caolan's wonderful kanso.
 
