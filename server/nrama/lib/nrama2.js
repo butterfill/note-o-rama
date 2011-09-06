@@ -64,8 +64,9 @@
     };
 
     /**
-     * these are exactly the settings for embedded mode (bkmrklt or <script>),
-     * and they are the basis for server mode (some are overriden)
+     * These are some settings for embedded mode (bkmrklt or <script>).
+     * Others are added during init (see page_id and root_node).
+     * When used on the server, some settings are overriden.
      */
     exports._make_settings = function(nrama_uuid){
         var $ = jQuery;
@@ -420,27 +421,27 @@
         /**
          * loads data for a page (e.g. all quotes)
          * @param options.page_id is the page to load stuff for (required)
-         * @param options.type{String} [optional] specifies which type of objects to load (required)
-         * @param options.user_id{String} [optional] (cannot be specified unless type is specified)
+         * @param options.type{String} specifies which type of objects to load (required)
+         * @param options.user_id{String} [optional] omit if loading for all users
          */
         persist.load = function(options, callback) {
             var defaults = {
                 page_id : undefined, type : null, user_id : null,
                 success : null, error : null
             };
-            var settings = persist.$.extend({}, defaults, options);
+            var load_settings = persist.$.extend({}, defaults, options);
             
             var query;
-            if( !settings.type ) {
-                query = {startkey:'["'+settings.page_id+'"]', endkey:'["'+settings.page_id+'",{}]'};
+            if( !load_settings.type ) {
+                query = {startkey:'["'+load_settings.page_id+'"]', endkey:'["'+load_settings.page_id+'",{}]'};
             } else { //type is specified
-                if( !settings.user_id ) {
+                if( !load_settings.user_id ) {
                     query = {
-                        startkey:'["'+settings.page_id+'","'+settings.type+'"]',
-                        endkey:'["'+settings.page_id+'","'+settings.type+'",{}]'
+                        startkey:'["'+load_settings.page_id+'","'+load_settings.type+'"]',
+                        endkey:'["'+load_settings.page_id+'","'+load_settings.type+'",{}]'
                     };
                 } else {    //type and user_id are specified
-                    query = {key:'["'+settings.page_id+'","'+settings.type+'","'+settings.user_id+'"]' };
+                    query = {key:'["'+load_settings.page_id+'","'+load_settings.type+'","'+load_settings.user_id+'"]' };
                 }
             }
             db.getView('pageId_type_userId', query, _debug_wrap('persist.load',callback));
@@ -449,22 +450,44 @@
         return persist;
     };
 
+
     /**
-     * for each page_id, each user should create a source.  Minimally this
-     *  need only contain the page_id.  But it should ideally contain a title
-     *  and, where possible, authors &c.
-     *  @param lib{map} optionally provides dependencies (if these are not global): 
+     * Ways of serializing and restoring rangy range objects.
+     * These would ideally work across browsers; rangy_1_2 claims not to.  
+     * (Having multiple ways allow us to upgrade the method of serialization
+     * while still being able to correctly deserialize quotes created with older
+     * methods.)
+     * @param lib{map} provides rangy
+     */
+    exports._make_serializers = function(settings, lib){
+        var serializers = {
+            rangy_1_2 : {
+                id : 'rangy_1_2',   // id must match the name
+                serialize : function(range) {
+                    // second param means do not compute checksum (because adding highlights to page screws it up)
+                    return lib.rangy.serializeRange(range, true, settings.root_node);
+                },
+                deserialize : function(text) {
+                    return lib.rangy.deserializeRange(text, settings.root_node);
+                }
+            }
+        }
+        serializers.current = serializers.rangy_1_2;   // the serializer to be used in creating new quotes
+        return serializers;
+    };
+
+
+
+    /**
+     * for each page_id with notes, each user must create a source.  
+     *  @param lib{map} provides dependencies : 
      *    - b64_hmac_md5    from md5.js 
      *    - BibtexParser    from bibtex.js
      *    - $               from jQuery
-     *    -  _              from underscore.js
      */
     exports._make_sources = function(settings, persist, _debug, lib/*optional*/) {
         var sources = {};
-        sources.b64_hmac_md5    = lib ? lib.b64_hmac_md5 : window.b64_hmac_md5;
-        sources.BibtexParser    = lib ? lib.BibtexParser : window.BibtexParser;
-        sources.$               = lib ? lib.$ : jQuery;
-        sources._               = lib ? lib._ : window._;
+        lib.$.extend(sources, lib); //add lib.b64_hmac_md5 etc to sources
         
         /**
          * @returns the id of a source record for the user and page
@@ -561,7 +584,7 @@
                 return;
             }
             if( sources._.size(results) != 1 ) {
-                callback('nrama.sources.parse_bibtex: input contained '+sources._.size(results)+' entries ('+bib_str+')');
+                callback('nrama_sources.parse_bibtex: input contained '+sources._.size(results)+' entries ('+bib_str+')');
                 return;
             }
             var entry = sources._.toArray(results)[0];
@@ -576,6 +599,240 @@
         };
         return sources;
     };
+    
+    
+    /**
+     * This is only intended to work embedded in a page, not on the server.
+     * lib must include
+            b64_hmac_md5 
+            rangy 
+            $ ( jQuery )
+            _ : window._
+     */
+    exports._make_quotes = function(settings, uuid, persist,
+                                    sources, serializers, _debug,
+                                    lib) {
+        var quotes = {};
+        lib.$.extend(quotes, lib);  //add items in lib to quotes
+
+        /**
+         * @returns a hash for determining whether two quotes are the same
+         *     across different users.
+         */
+        quotes.calculate_hash = function(quote) {
+            var hash = quotes.b64_hmac_md5(quote.page_id, quote.content);
+            return hash;
+        };
+            
+        /**
+         * @param range is a Rangy range object
+         */
+        quotes.create = function(range) {
+            var new_quote = {
+                _id : 'q_'+uuid(),  
+                type : 'quote',
+                content : quotes.$.trim( range.toString() ),
+                background_color : settings.background_color,
+                url : document.location.href,
+                page_id : settings.page_id,  
+                page_title : document.title,
+                //the xpointer to the quote (well, it isn't actually an xpointer but  any serialized representation of the raneg)
+                xptr : serializers.current.serialize(range),
+                //the name of the method used to seralise
+                xptr_method : serializers.current.id,
+                page_order : quotes.calculate_page_order(range),
+                created : new Date().getTime(),
+                updated : new Date().getTime(),
+                user_id : settings.user_id
+            };
+            new_quote.hash = quotes.calculate_hash(new_quote);
+            new_quote.source_id = sources.calculate_id({
+                user_id : new_quote.user_id,
+                page_id : new_quote.page_id
+            });
+            return new_quote;
+        };
+        
+        quotes.save = function(quote, options/*optional*/, callback) {
+            if( !callback ) {
+                callback = options;
+                options = {};
+            }
+            //update the source before saving any quotes
+            sources.update_once(quote, function(error, data) {
+                if( error ) {
+                    quotes.$.log('error in nrama_quotes.save is due to call to sources.update_once.')
+                    callback(error, data);
+                    return;
+                }
+                persist.save(quote, options, callback);
+            });
+        },
+        
+        /**
+         * attempt to highlight quote into the HTML document.  May fail if range
+         * cannot be decoded; fails silently.  Nodes added to the DOM will have the
+         * quote object stored with jQuery.data (key:'nrama_quote')
+         *
+         * Checks that quote not already on page; will not re-display if it is.
+         *
+         * depends Rangy + its highlight module
+         *
+         * @returns true if successful (or quote already displayed), false otherwise
+         */
+        quotes.display = function(quote) {
+            if( quotes.$('.'+quote._id).length != 0 ) {
+                return true;  //quote already displayed
+            }
+            var range = quotes.get_range(quote);
+            if( range == null ) {
+                return false;
+            }
+            var _rangy_highlighter = quotes.rangy.createCssClassApplier("_nrama-quote "+quote._id,false);
+            try{
+                _rangy_highlighter.applyToRange(range);
+            } catch(error) { //seems to be rare
+                if( settings.debug ) {
+                    quotes.$.log("nrama: error using Randy's createCssClassApplier.applyToRange, re-throwing");
+                    throw error;
+                } else {
+                    return false;   //silently fail if not in debug mode
+                }
+            }
+            quotes.$('.'+quote._id).css('background-color',quote.background_color).data('nrama_quote',quote);
+            return true;
+        };
+        
+        /**
+         * remove a quote's highlights from the HTML document.
+         * leaves jQuery.data('nrama_quote') and _id as class intact, so quote can
+         *   still be found (todo: not sure this is a good idea!).
+         * todo -- this would ideally remove the elements so that subsequent quotes
+         *  had more reliable xpointers (as long as we don't have a way of getting
+         *  good xpointers).
+         */
+        quotes.undisplay = function(quote) {
+            quotes.$('.'+quote._id).
+                removeClass('_nrama-quote').
+                css({'border-top':'none', 'border-bottom':'none', 'box-shadow':'none'}).
+                //removeClass(quote._id). //not sure whether I want to do this yet
+                css('background-color','red').
+                animate({'background-color':'black'}, function(){
+                    quotes.$(this).css('background-color','inherit');
+                });
+        };
+        
+        quotes.flash = function(quote_id) {
+            var $quote_nodes = quotes.$('.'+quote_id);
+            $quote_nodes.css({'border-top':'1px dashed black',
+                             'border-bottom':'1px dashed black',
+                             'box-shadow':'0 0 20px' + settings.background_color });
+            window.setTimeout(function(){
+                $quote_nodes.css({'border-top':'none', 'border-bottom':'none', 'box-shadow':'none'});            
+            },600);
+        };
+        
+        /**
+         * request quote delete from server and remove from page if successful
+         */
+        quotes.remove = function(quote) {
+            quotes.$('.'+quote._id).css('background-color','orange');
+            persist.rm(quote, function(error, data){
+                if( !error ) {
+                    quotes.undisplay(quote);
+                }
+            });
+        };
+        
+        /**
+         * load quotes from server and display on this page
+         */
+        quotes.load = function(page_id, callback) {
+            var user_id = settings.me_only ? settings.user_id : undefined;
+            persist.load({
+                page_id : page_id,
+                type : 'quote',
+                user_id : user_id
+            }, function(error, data){
+                if( !error && data ) {
+                    quotes.$.log('nrama_quotes.load got ' + ( data.rows ? data.rows.length : 0 ) + ' quotes from server for user '+user_id);
+                    //need to sort quotes by the time they were added to page for best chance of displaying them
+                    var _sorter = function(a,b){ return a.value.created - b.value.created };
+                    data.rows.sort(_sorter);
+                    var _failing_quotes = []
+                    quotes.$.each(data.rows, function(index, row){
+                        var quote = row.value;
+                        var success = quotes.display(quote);  //this won't re-display quotes already present
+                        if( !success ) {
+                            _failing_quotes.push(quote._id);
+                        }
+                    });
+                    if( _failing_quotes.length > 0 ) {
+                        quotes.$.log('failed to display '+_failing_quotes.length+' quotes, _ids: '+_failing_quotes.join('\n\t'));
+                    }
+                }
+                callback(error, data);
+           });
+        };
+        
+        /**
+         * @returns the range for the specified quote or null if not possible.
+         * caution: this may fail once the quote has been highlighted!
+         */
+        quotes.get_range = function(quote) {
+            var method = quote.xptr_method || '_method_unspecified'; //method for recovering the range from the quote
+            if( ! (method in serializers) ) {
+                quotes.$.log('unknown xptr_method ('+method+') for quote '+quote._id);
+                return null;
+            }
+            try {
+                var serializer = serializers[method];
+                return serializer.deserialize(quote.xptr);
+            } catch(error) {
+                //quotes.$.log('nrama_quotes.display FAIL with range = '+quote.xptr+'\n\t for quote '+quote._id);
+                //_debug({catch_error:error});  //not usually informative
+                return null;
+            }
+        };
+        
+        /**
+         * @returns a quote object (or null if not found)
+         */
+        quotes.get_from_page = function(quote_id) {
+            return quotes.$('.'+quote_id).first().data('nrama_quote') || null;
+        };
+        
+        /**
+         * @param range{Rangy}
+         * @returns an array representing the order this quote probably appears
+         * on the page.  Assumes that earlier in DOM means earlier on screen.
+         * (the alternative would be to use height, but that fails for columns
+         * & varying height)
+         */
+        quotes.calculate_page_order = function calculate_page_order(range) {
+            var doc_height = quotes.$(settings.root_node).height();
+            var doc_width = quotes.$(settings.root_node).width();
+            //todo
+            var node = range.startContainer;
+            var page_order = [range.startOffset];   //create in reverse order, will reverse it
+            while ( node && node != document.body ) {
+                page_order.push(quotes.rangy.dom.getNodeIndex(node, true));
+                node = node.parentNode;
+            }
+            page_order.reverse();
+            return page_order;
+        };
+        
+        /**
+         * calculate the offset (.top, .left) of a quote
+         */
+        quotes.offset = function(quote_id) {
+            return quotes.$('.'+quote_id).first().offset();
+        };
+        
+        return quotes;
+    };
+    
     
     /**
      *  @param quotes can be set to null; if provided it is used to position noes
@@ -1042,13 +1299,14 @@
     /**
      * put nrama together when used as bkmrklt or embedded <script>
      * (see nrama2_init.js for the corresponing init for the server parts)
+     * caution: some init requires page load to be complete
      * @param callback{Function} is called when init done.
      */
     var _nrama_init = function(nrama, jQuery, callback) {
         nrama.$ = jQuery;
 
         nrama.uuid = exports._make_uuid(uuid);
-    
+
         nrama.settings = exports._make_settings(nrama.uuid);
         //detect user if set by bkmrklt or script (will be overriden by session cookies)
         if( typeof _nrama_user !== 'undefined' && _nrama_user ) {
@@ -1062,264 +1320,18 @@
         nrama.session = exports._make_session(nrama.rpc);
         nrama.persist = exports._make_persist(nrama.db, nrama.session, nrama.uuid, nrama._debug);
         
-        /**
-         * Ways of serializing and restoring rangy range objects.
-         * These would ideally work across browsers; rangy_1_2 claims not to.  
-         * (Having multiple ways allow us to upgrade the method of serialization
-         * while still being able to correctly deserialize quotes created with older
-         * methods.)
-         */
-        nrama.serializers = {
-            rangy_1_2 : {
-                // id must match the name
-                id : 'rangy_1_2',
-                serialize : function(range) {
-                    // second param means do not compute checksum (because adding highlights
-                    // to page screws it up)
-                    return rangy.serializeRange(range, true, nrama.root_node);
-                },
-                deserialize : function(text) {
-                    return rangy.deserializeRange(text, nrama.root_node);
-                }
-            }
-        }
-        // the serializer to be used in creating new quotes
-        nrama.serializer = nrama.serializers['rangy_1_2'];
-    
-        nrama.sources = exports._make_sources(nrama.settings, nrama.persist, nrama._debug);
-
-        /**
-         * depends on :
-         *   Rangy
-         *   nrama.uuid
-         *   nrama.serializer,
-         *   nrama.url
-         *   nrama.persist
-         */
-        nrama.quotes = {
-            /**
-             * @returns a hash useful for determining whether two quotes are the same
-             *     across different users.
-             */
-            calculate_hash : function(quote) {
-                var hash = b64_hmac_md5(quote.page_id, quote.content);
-                nrama.quotes._last_hash = hash;
-                return hash;
-            },
-                
-            /**
-             * @param range is a Rangy range object
-             * @returns a nrama quote object.
-             */
-            create : function create(range) {
-                var new_quote = {
-                    _id : 'q_'+nrama.uuid(),  
-                    type : 'quote',
-                    content : nrama.$.trim( range.toString() ),
-                    background_color : nrama.settings.background_color,
-                    url : document.location.href,
-                    page_id : nrama.page_id,  
-                    page_title : document.title,
-                    //the xpointer to the quote (well, it isn't actually an xpointer but  any serialized representation of the raneg)
-                    xptr : nrama.serializer.serialize(range),
-                    //the name of the method used to seralise
-                    xptr_method : nrama.serializer.id,
-                    page_order : nrama.quotes.calculate_page_order(range),
-                    created : new Date().getTime(),
-                    updated : new Date().getTime(),
-                    user_id : nrama.settings.user_id
-                };
-                new_quote.hash = nrama.quotes.calculate_hash(new_quote);
-                new_quote.source_id = nrama.sources.calculate_id({
-                    user_id : new_quote.user_id,
-                    page_id : new_quote.page_id
-                });
-                return new_quote;
-            },
-            
-            save : function(quote, options /*optional*/, callback) {
-                if( !callback ) {
-                    callback = options;
-                    options = {};
-                }
-                //update the source before saving any quotes
-                nrama.sources.update_once(quote, function(error, data) {
-                    if( error ) {
-                        nrama.$.log('error in nrama.quotes.save is due to call to nrama.sources.update_once.')
-                        callback(error, data);
-                        return;
-                    }
-                    nrama.persist.save(quote, options, callback);
-                });
-            },
-            
-            /**
-             * attempt to highlight quote into the HTML document.  May fail if range
-             * cannot be decoded; fails silently.  Nodes added to the DOM will have the
-             * quote object stored with jQuery.data (key:'nrama_quote')
-             *
-             * Checks that quote not already on page; will not re-display if it is.
-             *
-             * depends Rangy + its highlight module
-             *
-             * @returns true if successful (or quote already displayed), false otherwise
-             */
-            display : function display(quote) {
-                if( nrama.$('.'+quote._id).length != 0 ) {
-                    return true;  //quote already displayed
-                }
-                var range = nrama.quotes.get_range(quote);
-                if( range == null ) {
-                    return false;
-                }
-                var _rangy_highlighter = rangy.createCssClassApplier("_nrama-quote "+quote._id,false);
-                try{
-                    _rangy_highlighter.applyToRange(range);
-                } catch(error) { //seems to be rare
-                    if( nrama.settings.debug ) {
-                        nrama.$.log("nrama: error using Randy's createCssClassApplier.applyToRange, re-throwing");
-                        throw error;
-                    } else {
-                        return false;   //silently fail if not in debug mode
-                    }
-                }
-                nrama.$('.'+quote._id).css('background-color',quote.background_color).data('nrama_quote',quote);
-                return true;
-            },
-            
-            /**
-             * remove a quote's highlights from the HTML document.
-             * leaves jQuery.data('nrama_quote') and _id as class intact, so quote can
-             *   still be found (todo: not sure this is a good idea!).
-             * todo -- this would ideally remove the elements so that subsequent quotes
-             *  had more reliable xpointers (as long as we don't have a way of getting
-             *  good xpointers).
-             */
-            undisplay : function undisplay(quote) {
-                nrama.$('.'+quote._id).
-                    removeClass('_nrama-quote').
-                    css({'border-top':'none', 'border-bottom':'none', 'box-shadow':'none'}).
-                    //removeClass(quote._id). //not sure whether I want to do this yet
-                    css('background-color','red').
-                    animate({'background-color':'black'}, function(){
-                        nrama.$(this).css('background-color','inherit');
-                    });
-            },
-            
-            flash : function flash(quote_id) {
-                var $quote_nodes = nrama.$('.'+quote_id);
-                $quote_nodes.css({'border-top':'1px dashed black',
-                                 'border-bottom':'1px dashed black',
-                                 'box-shadow':'0 0 20px' + nrama.settings.background_color });
-                window.setTimeout(function(){
-                    $quote_nodes.css({'border-top':'none', 'border-bottom':'none', 'box-shadow':'none'});            
-                },600);
-            },
-            
-            /**
-             * request quote delete from server and remove from page if successful
-             */
-            remove : function remove(quote) {
-                nrama.$('.'+quote._id).css('background-color','orange');
-                nrama.persist.rm(quote, function(error, data){
-                    if( !error ) {
-                        nrama.quotes.undisplay(quote);
-                    }
-                });
-            },
-            
-            /**
-             * load quotes from server and display on this page
-             */
-            load : function load(page_id, callback) {
-                var user_id = nrama.settings.me_only ? nrama.settings.user_id : undefined;
-                nrama.persist.load({
-                    page_id : page_id,
-                    type : 'quote',
-                    user_id : user_id
-                }, function(error, data){
-                    if( error ) {
-                        nrama._debug({msg:'nrama.quotes.load: error loading quotes', error:error});
-                        callback(error);
-                        return;
-                    }
-                    nrama.$.log('nrama_quotes.load got ' + ( data ? (data.rows ? data.rows.length : 0 ) : 0) + ' quotes from server for user '+user_id);
-                    //need to sort quotes by the time they were added to page for best chance of displaying them
-                    if( data && data.rows ) {
-                        var _sorter = function(a,b){ return a.value.created - b.value.created };
-                        data.rows.sort(_sorter);
-                        var _failing_quotes = []
-                        nrama.$.each(data.rows, function(index,row){
-                            var quote = row.value;
-                            var success = nrama.quotes.display(quote);  //this won't re-display quotes already present
-                            if( !success ) {
-                                _failing_quotes.push(quote._id);
-                            }
-                        });
-                        if( _failing_quotes.length > 0 ) {
-                            nrama.$.log('failed to display quotes with _ids: '+_failing_quotes);
-                        }
-                        callback(error, data);
-                    }
-               });
-            },
-            
-            /**
-             * @returns the range for the specified quote or null if not possible.
-             * NB: this may fail once the quote has been highlighted!
-             */
-            get_range : function get_range(quote) {
-                var method = quote.xptr_method || '_method_unspecified'; //method for recovering the range from the quote
-                if( ! (method in nrama.serializers) ) {
-                    nrama.$.log('unknown xptr_method ('+method+') for quote '+quote._id);
-                    return null;
-                }
-                try {
-                    var serializer = nrama.serializers[method];
-                    return serializer.deserialize(quote.xptr);
-                } catch(error) {
-                    //nrama.$.log('nrama.quotes.display FAIL with range = '+quote.xptr+' for quote '+quote._id);
-                    //nrama._debug({catch_error:error});  //not usually informative
-                    return null;
-                }
-            },
-            
-            /**
-             * @returns a quote object (or null if not found)
-             */
-            get_from_page : function get_from_page(quote_id) {
-                return nrama.$('.'+quote_id).first().data('nrama_quote') || null;
-            },
-            
-            /**
-             * @param range{Rangy}
-             * @returns an array representing the order this quote probably appears
-             * on the page.  Assumes that earlier in DOM means earlier on screen.
-             * (the alternative would be to use height, but that fails for columns
-             * & varying height)
-             */
-            calculate_page_order : function calculate_page_order(range) {
-                var doc_height = nrama.$(nrama.root_node).height();
-                var doc_width = nrama.$(nrama.root_node).width();
-                //todo
-                var node = range.startContainer;
-                var page_order = [range.startOffset];   //create in reverse order, will reverse it
-                while ( node && node != document.body ) {
-                    page_order.push(rangy.dom.getNodeIndex(node, true));
-                    node = node.parentNode;
-                }
-                page_order.reverse();
-                return page_order;
-            },
-            
-            /**
-             * calculate the offset (.top, .left) of a quote
-             */
-            offset : function offset(quote_id) {
-                return nrama.$('.'+quote_id).first().offset();
-            }
-        }
-        
+        var lib = {
+            b64_hmac_md5 : window.b64_hmac_md5,
+            rangy : window.rangy,
+            BibtexParser : window.BibtexParser,
+            $ : jQuery,
+            _ : window._
+        };
+        nrama.serializers = exports._make_serializers(nrama.settings, lib);
+        nrama.sources = exports._make_sources(nrama.settings, nrama.persist, nrama._debug, lib);
+        nrama.quotes = exports._make_quotes(nrama.settings, nrama.uuid, nrama.persist,
+                                            nrama.sources, nrama.serializers, nrama._debug,
+                                            lib);
         nrama.notes = exports._make_notes(nrama.settings, nrama.uuid, nrama.persist,
                                           nrama.sources, nrama.quotes, nrama._debug);
         nrama.ui = exports._make_ui(nrama.settings, nrama.session, nrama._debug);
@@ -1332,22 +1344,21 @@
          */
         nrama.$(document).ready(function(){
             /**
-             * nrama.page_id is a value s.t. two page instances have the same page_id exactly
+             * nrama.settings.page_id is a value s.t. two page instances have the same page_id exactly
              *   when we want to load the same notes & quotes onto those pages.  This is really
              *   hard to compute (e.g. DOI helps but if different users see an article with
              *   different formatting, should we load the same notes & quotes?  Probably.)
              * In future this might be doi or similar
              */
-            nrama.page_id = window.location.protocol+"//"+window.location.host+window.location.pathname;  //the url with no ?query or #anchor details
+            nrama.settings.page_id = window.location.protocol+"//"+window.location.host+window.location.pathname;  //the url with no ?query or #anchor details
             
             /**
              * this is the node within which notes and quotes are possible and
              * relative to which their locations are defined.
              * Might eventually be configured per-site
-             * NB nrama.root_note must be defined after document loaded!
              */
-            //nrama.root_node = nrama.$('#readOverlay')[0]; 
-            nrama.root_node = document.body;
+            //nrama.settings.root_node = nrama.$('#readOverlay')[0]; 
+            nrama.settings.root_node = document.body;
     
             rangy.init();
     
@@ -1357,8 +1368,8 @@
                     nrama._debug({msg:'error logging in',error:error});
                 } else {
                     //_.defer means wait until callstack cleared
-                    _.defer(nrama.quotes.load, nrama.page_id, function(error, data){
-                        _.defer(nrama.notes.load, nrama.page_id, nrama._debug );
+                    _.defer(nrama.quotes.load, nrama.settings.page_id, function(error, data){
+                        _.defer(nrama.notes.load, nrama.settings.page_id, nrama._debug );
                     });
                 }
             });
@@ -1520,23 +1531,9 @@
                         }
                     }
                 }
-                // disable existing javascript (thank you readability)
-                /*
-                window.onload = window.onunload = function() {};
-                var scripts = document.getElementsByTagName('script');
-                for(var i = scripts.length-1; i >= 0; i--) {
-                    scripts[i].nodeValue="";
-                    scripts[i].removeAttribute('src');
-                    if (scripts[i].parentNode) {
-                            scripts[i].parentNode.removeChild(scripts[i]);
-                    }
-                }*/
-                // disable existing javascript (thank you http://javascript.about.com/library/bldis.htm)
-                //var d=document;
-                //while((el=d.getElementsByTagName('script')).length){el[0].parentNode.removeChild(el[0]);}
+     
                 // load libraries & only start work after they loaded
-                // thank you http://stackoverflow.com/questions/756382/bookmarklet-wait-until-javascript-is-loaded
-                //from jQuery ajaxTransport
+                // adapted from jQuery ajaxTransport, thank you also http://stackoverflow.com/questions/756382/bookmarklet-wait-until-javascript-is-loaded
                 var loadScript2 = function(url, callback) {
                     var head = document.head || document.getElementsByTagName( "head" )[0] || document.documentElement;
                     var script = document.createElement( "script" );
