@@ -156,16 +156,17 @@
             _debug = function _debug(){
                 var map_or_array = arguments.length == 1 ? arguments[0] : arguments;
                 $.each(map_or_array, function(key,val){
-                      if( isFinite(key) ) {
-                        key = 'a'+key;      //allows us to handle arrays
-                      }
-                      if( typeof $.log === 'function' ) {
-                        $.log('nrama_debug setting '+key+'='+val);
-                        window[key]=val;
-                      }
+                        if( isFinite(key) ) {
+                            key = 'a'+key;      //allows us to handle arrays
+                        }
+                        if( typeof $.log === 'function' ) {
+                            $.log('nrama_debug setting '+key+'='+val);
+                            window[key]=val;
+                        }
                 });
             };
-            window.cb = function(){ $.log('window.cb called, sending arguments to _debug'); _debug(arguments); }; //convenience callback for testing async
+            //convenience callback for testing async
+            window.cb = function(){ $.log('window.cb called, sending arguments to _debug'); _debug(arguments); }; 
         }
         return _debug;
     };
@@ -174,20 +175,156 @@
      * caution: extends $
      */
     exports._make_logging = function(settings, $) {
-        var logger = function(){
-            if( !settings.debug ) {
-                return false;       // will not log anything if not in debug mode
-            }
-            try { 
-              console.log(arguments[0]);
-              return true;
-            } catch(e) {
-              return false;
+        var logger = function(){ return false; };
+        if( settings.debug ) {
+            logger = function(){
+                // will not log anything unless in debug mode
+                try {
+                    var args = Array.prototype.slice.call(arguments);
+                    $.each(args, function(idx, arg){
+                        console.log(arg);
+                    });
+                    return true;
+                } catch(e) {
+                    return false;
+                }
             }
         }
         $.extend({"log":logger});
         return logger;
     };
+
+    /**
+     * @returns the rpc transport for xdm 
+     */
+    exports._make_rpc = function(settings, easyXDM, $) {
+        var rpc = {};
+        rpc.$ = $;
+        
+        //local functions allow communication from the server to user
+        var local = {};
+        local.get_version = {
+            method : function(success, error){ success("0.2"); }
+        };
+        local.msg = {
+            method : function(message, success, error){
+                if( typeof message === 'string' ) {
+                    alert(message);
+                    success('done');
+                }
+            }
+        };
+        /**
+         * display a dialog using jQuery.simplemodal, minimsing xss vulnerabilities
+         */
+        local.modal = {
+            method : function(div_str, success, error){
+                if( typeof div_str === 'string') {
+                    var $div = rpc.$('<div>'+div_str+'</div>');
+                    rpc.$('#id_ok', $div).click(function () {
+                        rpc.$.modal.close();
+                        success('ok');          //nb this only triggers cb on remote end (no function is passed)
+                    });
+                    $div.beResetCSS().modal(settings.simplemodal);
+                }
+            }
+        };
+        var rpc_names = ['db_saveDoc', 'db_removeDoc', 'db_getView', 'db_doUpdate',
+                         'session_login', 'session_logout', 'session_info'];
+        var remote = { };
+        rpc.$.each(rpc_names, function(idx,name){
+            remote[name] = {};      //create a stub      
+        });
+        if( settings.debug ) {
+            remote.test = {};
+        }
+        
+        var _rpc = new easyXDM.Rpc({ remote:settings.xdm_url },{ remote:remote, local:local });
+        //ideally _rpc would be all we need, but some tweaking is needed ...
+        
+        /**
+         * get rpc to work with kanso.db and kanso.session : callback arguments passed as an array.
+         * (See the corresponding wrappers in xdm/provider.js|html to get full picture.)
+         * wrap_unarray is for undoing the effects of executing callbacks with all parameters
+         * collapsed into an array (easyXDM only allows for callbacks with a single parameter).
+         */
+        var _callback_wrapper = function(fn){
+            return function(){
+                var new_args = arguments[0];
+                fn.apply(null, new_args);
+            }
+        };
+        var _wrap_unarray = function( method ) {
+            return function( ) {
+                var new_arguments = _.map(arguments, function(arg){
+                    if( typeof(arg) == 'function' ) {
+                        return _callback_wrapper(arg);    //wrap because we're putting parameters into array for xdm
+                    }
+                    return arg;
+                });
+                method.apply(null, new_arguments);  
+            }
+        }
+
+        // finally, add the rpc functions
+        rpc.$.each(rpc_names, function(idx,name){
+            rpc[name] = _wrap_unarray( _rpc[name] );      
+        });
+        
+        return rpc;
+    };
+    
+    
+    /**
+     * @return a subset of kanso's db module, same API
+     * Any 403 Forbidden errors will trigger a custom event, 'nrama_403'
+     */
+    exports._make_db = function(rpc, $) {
+        var db = {};
+        db.$ = $;
+        
+        /**
+         * we want to capture 403 (forbidden) errors so that the user can login
+         * caution : assumes last argument is the unique callback (as node js)
+         */
+        var _wrap_403_callback = function( callback ) {
+            return function(error, data) {
+                if( error && ( error.status === 403 || error.error === 'forbidden' ) ) {
+                    var user_id = '';
+                    try {
+                        user_id = error.message.slice(error.message.indexOf('user_id:')+8);
+                    } catch(e) {}
+                    db.$(document).trigger('nrama_403', user_id);
+                }
+                callback(error, data);
+            }
+        };
+        var _wrap_403 = function( fn ) {
+            return function() {
+                var args = Array.prototype.slice.call(arguments);
+                args[args.length-1] = _wrap_403_callback( args[args.length-1] );
+                return fn.apply(null, args);
+            }
+        }
+        db.saveDoc = _wrap_403( rpc.db_saveDoc );
+        db.removeDoc = _wrap_403( rpc.db_removeDoc );
+        db.getView = _wrap_403( rpc.db_getView );
+        db.doUpdate = _wrap_403( rpc.db_doUpdate )
+        
+        return db;
+    };
+
+    /**
+     * @return a subset of kanso's session module, same API
+     */
+    exports._make_session = function(rpc) {
+        return {
+            login : rpc.session_login,
+            logout : rpc.session_logout,
+            info : rpc.session_info 
+        };
+    };
+
 
     /**
      * @param db{Object} implements (a subset of) kanso's db module
@@ -913,120 +1050,16 @@
         nrama.uuid = exports._make_uuid(uuid);
     
         nrama.settings = exports._make_settings(nrama.uuid);
-        //detect user set by bkmrklt or script
+        //detect user if set by bkmrklt or script (will be overriden by session cookies)
         if( typeof _nrama_user !== 'undefined' && _nrama_user ) {
             nrama.settings.user_id = _nrama_user;
         }
 
         nrama._debug = exports._make_debug(nrama.settings, window);
         nrama.log = exports._make_logging(nrama.settings, nrama.$);
-
-        /**
-         * builds the rpc transport necessary for xdm 
-         */
-        var _make_rpc = function(settings, easyXDM) {
-            var local = {};
-            local.get_version = {
-                method : function(success, error){ success("0.2"); }
-            };
-            local.msg = {
-                method : function(message, success, error){
-                    if( typeof message === 'string' ) {
-                        alert(message);
-                        success('done');
-                    }
-                }
-            };
-            /**
-             * display a dialog using jQuery.simplemodal, minimsing xss vulnerabilities
-             */
-            local.modal = {
-                method : function(div_str, success, error){
-                    if( typeof div_str === 'string') {
-                        var $div = nrama.$('<div>'+div_str+'</div>');
-                        nrama.$('#id_ok', $div).click(function () {
-                            nrama.$.modal.close();
-                            success('ok');
-                        });
-                        $div.beResetCSS().modal(settings.simplemodal);
-                    }
-                }
-            };
-            var remote = {
-                test: {},
-                db_saveDoc: {},
-                db_removeDoc : {},
-                db_getView: {},
-                db_doUpdate : {},
-                session_login: {},
-                session_logout : {},
-                session_info : {},
-                db_getView2 : {}
-            };
-            return new easyXDM.Rpc({ remote:settings.xdm_url },{ remote:remote, local:local });
-        }
-        nrama._rpc = _make_rpc(nrama.settings, easyXDM);
-        /**
-         * some messing around to get rpc to work with kanso.db and kanso.session is needed.
-         * (See the corresponding wrappers in xdm/provider.js|html to get full picture.)
-         * wrap_unarray is for undoing the effects of executing callbacks with all parameters
-         * collapsed into an array (easyXDM only allows for callbacks with a single parameter).
-         */
-        var _wrap_unarray = function(fn){
-            return function(){
-                var new_args = _.toArray(arguments[0]);
-                fn.apply(null, new_args);
-            }
-        };
-        var _wrap_rpc = function( method ) {
-            return function( ) {
-                var new_arguments = _.map(arguments, function(arg){
-                    if( typeof(arg) == 'function' ) {
-                        return _wrap_unarray(arg);    //wrap because we're putting parameters into array for xdm
-                    }
-                    return arg;
-                });
-                method.apply(null, new_arguments);  
-            }
-        }
-        /**
-         * we also want to capture 403 (forbidden) errors so that the user can login
-         * caution : assumes last argument is the unique callback (as node js)
-         */
-        var _wrap_403_callback = function( callback ) {
-            return function(error, data) {
-                if( error && ( error.status === 403 || error.error === 'forbidden' ) ) {
-                    var user_id = '';
-                    try {
-                        user_id = error.message.slice(error.message.indexOf('user_id:')+8);
-                    } catch(e) {}
-                    nrama.$(document).trigger('nrama_403', user_id);
-                }
-                callback(error, data);
-            }
-        };
-        var _wrap_403 = function( fn ) {
-            return function() {
-                var args = Array.prototype.slice.call(arguments);
-                args[args.length-1] = _wrap_403_callback( args[args.length-1] );
-                return fn.apply(null, args);
-            }
-        }
-        var _wrap = _.compose(_wrap_403, _wrap_rpc);
-        nrama.db = {
-            saveDoc : _wrap( nrama._rpc.db_saveDoc ),
-            removeDoc : _wrap( nrama._rpc.db_removeDoc ),
-            getView : _wrap( nrama._rpc.db_getView ),
-            doUpdate : _wrap( nrama._rpc.db_doUpdate )
-        };
-        // nb session 403s musn't get _wrap_403'd !
-        nrama.session = {
-            login : _wrap_rpc( nrama._rpc.session_login ),
-            logout : _wrap_rpc( nrama._rpc.session_logout ),
-            info : _wrap_rpc( nrama._rpc.session_info )
-        };
-        
-        
+        nrama.rpc = exports._make_rpc(nrama.settings, easyXDM, nrama.$);
+        nrama.db = exports._make_db(nrama.rpc, nrama.$);
+        nrama.session = exports._make_session(nrama.rpc);
         nrama.persist = exports._make_persist(nrama.db, nrama.session, nrama.uuid, nrama._debug);
         
         /**
@@ -1289,7 +1322,6 @@
         
         nrama.notes = exports._make_notes(nrama.settings, nrama.uuid, nrama.persist,
                                           nrama.sources, nrama.quotes, nrama._debug);
-        
         nrama.ui = exports._make_ui(nrama.settings, nrama.session, nrama._debug);
 
         /**
