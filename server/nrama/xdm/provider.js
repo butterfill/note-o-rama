@@ -17,14 +17,17 @@
  *  other end (the consumer).
  */
 var _array_wrap = function(fn) {
-    return function(){ fn(arguments); }
+    return function(){
+        var args = Array.prototype.slice.call(arguments);
+        fn(args);
+    }
 }
 var _wrap = function(fn) {
     return {
         method : function(){
             var wrapped_arguments = [];
             $.each(arguments, function(idx, arg){
-                if( typeof(arg) === "function" ) {
+                if( typeof arg === "function" ) {
                     wrapped_arguments.push( _array_wrap(arg) );
                 } else {
                     wrapped_arguments.push(arg);
@@ -40,7 +43,7 @@ var _wrap = function(fn) {
 var local = {
     test : {
         method : function(object, on_success, on_error) {
-            return on_success('that worked!', object);
+            return on_success(object);
         }
     },
     db_saveDoc : _wrap( db.saveDoc ),
@@ -148,3 +151,9 @@ var make_modal_str = function(version) {
     return modal_str;
 }
 */
+
+fn = function(){
+    $.each(arguments, function(idx, arg){
+        console.log(arg);
+    });
+}

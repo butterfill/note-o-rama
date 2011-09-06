@@ -5,7 +5,7 @@
  * For dependencies see lib.js
  *
  * To run as bookmarklet (change url; delete the 'now' param if not in developent mode):
- *   javascript:(function(){delete module;delete exports;_nrama_bkmklt=true;_nrama_user='steve';document.body.appendChild(document.createElement('script')).src='http://localhost:8888/nrama2_test/nrama2.js?now=new Date().getTime()'; })();
+ *   javascript:(function(){delete module;delete exports;_nrama_bkmklt=true;_nrama_user='steve';document.body.appendChild(document.createElement('script')).src='http://localhost:5984/nrama/_design/nrama/bkmrklt/nrama2.js?now=new Date().getTime()'; })();
  *
  * To embed in page:
  *   <script src='lib.min.js" ></script>
@@ -46,20 +46,21 @@
  * is to allow checking nrama not already loaded, see below).
  */
 (function(exports){
-    var _NRAMA_LIB_URL = "http://localhost:8888/nrama2_test/lib.min.js"; //where to load lib from (for bookmarklet only)
+    var _NRAMA_LIB_URL = "http://localhost:5984/nrama/_design/nrama/bkmrklt/lib.min.js"; //where to load lib from (for bookmarklet only)
 
     /**
      * fix uuids so that it doesn't include dashes (no good for couchDB)
      * also include a trailing N to mark the source
      */
     exports._make_uuid = function(uuid) {
-        return function (use_b36/*optional*/){
+        var new_uuid = function (use_b36/*optional*/){
             if( use_b36 ) {
                 return parseInt(uuid().replace(/-/g,''), 16).toString(36);
             } else {
                 return  uuid().replace(/-/g,'')+'N';
             }
         }
+        return new_uuid;
     };
 
     /**
@@ -67,6 +68,7 @@
      * and they are the basis for server mode (some are overriden)
      */
     exports._make_settings = function(nrama_uuid){
+        var $ = jQuery;
         var settings = {
             // -- internals
             is_embedded : true,     //set to false when being used on the server
@@ -147,6 +149,7 @@
      * caution : if settings.debug, this will add to window (if defined)
      */
     exports._make_debug = function(settings, window) {
+        var $ = jQuery;
         var _debug = function(){};    //does nothing if not debugging
         if( settings.debug && typeof window !== 'undefined' ) {
             //window.$=jQuery;                        //<-- nb breaks noConflict
@@ -193,6 +196,7 @@
      */
     exports._make_persist = function(db, session, uuid, _debug) {
         persist = {};
+        persist.$ = jQuery;
 
         //log errors (used to wrap callbacks from db & session)
         var _debug_wrap = function(name, callback) {
@@ -217,13 +221,13 @@
             var defaults = {
                 clone_on_conflict : false   //e.g. set to true used when saving notes
             };
-            var settings = $.extend(true, {}, defaults, options);
+            var settings = persist.$.extend(true, {}, defaults, options);
 
             db.saveDoc(thing, function(error, data){
                 if( error ) {
                     if( settings.clone_on_conflict ) {
                         if( error.status == 409 || error.error == "conflict")  {
-                            $.log('nrama_persist.save: conflict on save for '+(thing.type || '')+' '+thing._id+' --- started cloning');
+                            persist.$.log('nrama_persist.save: conflict on save for '+(thing.type || '')+' '+thing._id+' --- started cloning');
                             persist.clone(thing, callback);
                             return;
                         }
@@ -246,7 +250,7 @@
             var updates = {
                 _id : new_id,
                 replaces_id : thing._id };
-            var cloned_thing = $.extend(true, {}, thing, updates); 
+            var cloned_thing = persist.$.extend(true, {}, thing, updates); 
             delete cloned_thing._rev;  //revision is no longer valid
             persist.save(cloned_thing, function(error, data){
                 if( !error ) {
@@ -287,7 +291,7 @@
                 page_id : undefined, type : null, user_id : null,
                 success : null, error : null
             };
-            var settings = $.extend({}, defaults, options);
+            var settings = persist.$.extend({}, defaults, options);
             
             var query;
             if( !settings.type ) {
@@ -322,7 +326,7 @@
         var sources = {};
         sources.b64_hmac_md5    = lib ? lib.b64_hmac_md5 : window.b64_hmac_md5;
         sources.BibtexParser    = lib ? lib.BibtexParser : window.BibtexParser;
-        sources.$               = lib ? lib.$ : ( jQuery ? jQuery : window.$ );
+        sources.$               = lib ? lib.$ : jQuery;
         sources._               = lib ? lib._ : window._;
         
         /**
@@ -442,6 +446,7 @@
     exports._make_notes = function(settings, uuid, persist,
                                sources, quotes, _debug) {
         var notes = {};
+        var $ = jQuery;
         /**
          * Create a new note for a specified quote.
          */
@@ -724,11 +729,13 @@
                     callback(error, data);
                     return;
                 }
-                $.log('nrama_notes.load got ' + data.rows.length + ' notes from server for user '+user_id);
-                $.each(data.rows, function(index,row){
-                    var note = row.value;
-                    notes.display(note, {focus:false});
-                });
+                $.log('nrama_notes.load got ' + ( data ? (data.rows ? data.rows.length : 0 ) : 0) + ' notes from server for user '+user_id);
+                if( data && data.rows ) {
+                    $.each(data.rows, function(index,row){
+                        var note = row.value;
+                        notes.display(note, {focus:false});
+                    });
+                }
                 callback(error, data);
             });
         };
@@ -757,6 +764,7 @@
      * for dialogs (todo -- move event handlers)
      */
     exports._make_ui = function(settings, session, _debug){
+        var $ = jQuery;
         var ui = {};
         
         var _update_user_id = function(data) {
@@ -894,24 +902,25 @@
     };
 
 
+    /**
+     * put nrama together when used as bkmrklt or embedded <script>
+     * (see nrama2_init.js for the corresponing init for the server parts)
+     * @param callback{Function} is called when init done.
+     */
+    var _nrama_init = function(nrama, jQuery, callback) {
+        nrama.$ = jQuery;
 
-
-    var _nrama_init = function(nrama, $) {
-        nrama.$ = $;
         nrama.uuid = exports._make_uuid(uuid);
     
         nrama.settings = exports._make_settings(nrama.uuid);
+        //detect user set by bkmrklt or script
         if( typeof _nrama_user !== 'undefined' && _nrama_user ) {
             nrama.settings.user_id = _nrama_user;
         }
+
         nrama._debug = exports._make_debug(nrama.settings, window);
         nrama.log = exports._make_logging(nrama.settings, nrama.$);
 
-        nrama.default_callback = function() {
-            nrama.$.log('nrama.default_callback called with values:');
-            nrama._debug(arguments); 
-        }
-        
         /**
          * builds the rpc transport necessary for xdm 
          */
@@ -1041,7 +1050,6 @@
                 }
             }
         }
-        
         // the serializer to be used in creating new quotes
         nrama.serializer = nrama.serializers['rangy_1_2'];
     
@@ -1202,22 +1210,24 @@
                         callback(error);
                         return;
                     }
-                    nrama.$.log('nrama_quotes.load got ' + data.rows.length + ' quotes from server for user '+user_id);
+                    nrama.$.log('nrama_quotes.load got ' + ( data ? (data.rows ? data.rows.length : 0 ) : 0) + ' quotes from server for user '+user_id);
                     //need to sort quotes by the time they were added to page for best chance of displaying them
-                    var _sorter = function(a,b){ return a.value.created - b.value.created };
-                    data.rows.sort(_sorter);
-                    var _failing_quotes = []
-                    nrama.$.each(data.rows, function(index,row){
-                        var quote = row.value;
-                        var success = nrama.quotes.display(quote);  //this won't re-display quotes already present
-                        if( !success ) {
-                            _failing_quotes.push(quote._id);
+                    if( data && data.rows ) {
+                        var _sorter = function(a,b){ return a.value.created - b.value.created };
+                        data.rows.sort(_sorter);
+                        var _failing_quotes = []
+                        nrama.$.each(data.rows, function(index,row){
+                            var quote = row.value;
+                            var success = nrama.quotes.display(quote);  //this won't re-display quotes already present
+                            if( !success ) {
+                                _failing_quotes.push(quote._id);
+                            }
+                        });
+                        if( _failing_quotes.length > 0 ) {
+                            nrama.$.log('failed to display quotes with _ids: '+_failing_quotes);
                         }
-                    });
-                    if( _failing_quotes.length > 0 ) {
-                        nrama.$.log('failed to display quotes with _ids: '+_failing_quotes);
+                        callback(error, data);
                     }
-                    callback(error, data);
                });
             },
             
@@ -1314,9 +1324,9 @@
                 if( error ) {
                     nrama._debug({msg:'error logging in',error:error});
                 } else {
-                    //using _.defer means waiting until callstack cleared
+                    //_.defer means wait until callstack cleared
                     _.defer(nrama.quotes.load, nrama.page_id, function(error, data){
-                        _.defer(nrama.notes.load, nrama.page_id, nrama.default_callback );
+                        _.defer(nrama.notes.load, nrama.page_id, nrama._debug );
                     });
                 }
             });
@@ -1328,7 +1338,7 @@
                 nrama.ui.dialogs.login(user_id, 'Please login and re-try.', nrama._debug);
             });
             
-            //throttle2 is based on underscore but _.throttle(fn) calls fn AFTER timout
+            //throttle2 is like _.throttle(fn) but this calls fn BEFORE timout
             var throttle2 = function(func) {
                 var timeout;
                 return function() {
@@ -1430,7 +1440,10 @@
                     nrama.$('textarea', this).blur();
                     e.preventDefault();
                 }
-            });       
+            });
+            
+            // === init done
+            callback();
         });
     }
     
@@ -1446,9 +1459,46 @@
         } else {
             if( typeof _nrama_bkmklt === 'undefined' || !_nrama_bkmklt ) {
                 //run as embedded <script> 
-                _nrama_init(exports, jQuery);
+                _nrama_init(exports, jQuery, function(){
+                    exports._initalized = true;
+                });
             } else {
                 // run in bookmarklet mode
+                // first remove head -- for some reason this seems to help avoid clashes in FF
+                var old_head = document.head.innerHTML;
+                var restore_document_head = function(){
+                    document.head.innerHTML = old_head;
+                }; 
+                try {
+                    document.head.innerHTML = '';
+                } catch(e) {
+                    //alt. method -- can't set innerHTML with safari (others?)
+                    var head = document.head;
+                    var children = [];
+                    while(head.firstChild){
+                        var child = head.firstChild;
+                        if( child.nodeName !== 'SCRIPT' ) {
+                            children.push( child );
+                        }
+                        head.removeChild( child )
+                    }
+                    restore_document_head = function(){
+                        while( children.length ) {
+                            head.appendChild( children.pop() );
+                        }
+                    }
+                }
+                // disable existing javascript (thank you readability)
+                /*
+                window.onload = window.onunload = function() {};
+                var scripts = document.getElementsByTagName('script');
+                for(var i = scripts.length-1; i >= 0; i--) {
+                    scripts[i].nodeValue="";
+                    scripts[i].removeAttribute('src');
+                    if (scripts[i].parentNode) {
+                            scripts[i].parentNode.removeChild(scripts[i]);
+                    }
+                }*/
                 // disable existing javascript (thank you http://javascript.about.com/library/bldis.htm)
                 //var d=document;
                 //while((el=d.getElementsByTagName('script')).length){el[0].parentNode.removeChild(el[0]);}
@@ -1479,8 +1529,11 @@
                     head.insertBefore( script, head.firstChild );
                 }
                 loadScript2(_NRAMA_LIB_URL, function() {
-
-                    _nrama_init(exports, jQuery);
+                    jQuery.noConflict();
+                    _nrama_init(exports, jQuery, function(){
+                        restore_document_head();
+                        exports._initalized = true;
+                    });
                 });
             }
         }
@@ -1492,7 +1545,7 @@
     ( typeof exports !== 'undefined' && typeof _nrama_bkmklt === 'undefined' ) ?
         exports
     :(
-        typeof nrama === 'undefined' ?
+        ( typeof nrama === 'undefined' || !nrama._initalized ) ?
             nrama={}
         :
             undefined   //prevent execution if nrama already defined
