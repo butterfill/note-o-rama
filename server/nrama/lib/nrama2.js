@@ -137,7 +137,7 @@
         };
         settings.note_style.width = settings.note_width+"px";
         settings.note_editor_style.width = settings.note_width+"px";
-        $.extend(settings.note_style, settings.style);
+        $.extend(settings.note_editor_style, settings.style);
         $.extend(settings.simplemodal.containerCss, settings.style);
         return settings;
     };
@@ -322,7 +322,7 @@
         var sources = {};
         sources.b64_hmac_md5    = lib ? lib.b64_hmac_md5 : window.b64_hmac_md5;
         sources.BibtexParser    = lib ? lib.BibtexParser : window.BibtexParser;
-        sources.$               = lib ? lib.$ : window.$;
+        sources.$               = lib ? lib.$ : ( jQuery ? jQuery : window.$ );
         sources._               = lib ? lib._ : window._;
         
         /**
@@ -393,6 +393,14 @@
             return authors.split(' and ');
         };
         /**
+         * quickly attempt to guess whether something is bibtex
+         */
+        // like this: @text { = , }
+        var _bib_rex = /(^|[^0-9A-Z&\/\?]+)(@)([0-9A-Z_]*[A-Z_]+[a-z0-9_]*)([\s\S]*?{)([\s\S]*?=)([\s\S]*?,)([\s\S]*?})/gi
+        sources.detect_bibtex = function( text ) {
+            return !!( text.match(_bib_rex) );
+        }
+        /**
          * given a string, attempts to parse it as bibtex and update the source
          * with the results.
          * @param thing can be a source, quote or note
@@ -401,9 +409,16 @@
          */
         sources.update_from_bibtex = function(bib_str, thing, callback) {
             var parser = new sources.BibtexParser();
-            parser.setInput(bib_str);
-            parser.bibtex();
-            var results = parser.getEntries();
+            var results;
+            try {
+                parser.setInput(bib_str);
+                parser.bibtex();
+                results = parser.getEntries();
+            } catch(e) {
+                _debug("caught error parsing bibtex",e)
+                callback('error parsing bibtex '+e);
+                return;
+            }
             if( sources._.size(results) != 1 ) {
                 callback('nrama.sources.parse_bibtex: input contained '+sources._.size(results)+' entries ('+bib_str+')');
                 return;
@@ -582,7 +597,7 @@
             }
         };
         /**
-         * update new note = event handler for blur event on TEXTAREA of $note
+         * event handler for blur event on TEXTAREA of $note
          * This handles display, logic & persistence.
          * if & when successfully persisted, the note is stored as a jquery.data attr
          * on the $note (key:nrama_note)
@@ -631,13 +646,23 @@
                 if( error ) {
                     $note.css({backgroundColor : settings.persist_failed_color});
                     _finally($note, false);
-                    return;
+                } else {
+                    //$.log("nrama_notes.update_on_blur: was persisted note _id:"+new_note._id+" for quote:"+new_note.quote_id);
+                    $note.attr('id',new_note._id); //may have changed (save can clone)
+                    $note = $('#'+new_note._id);   //have to update after changing id attribute
+                    $note.data('nrama_note', new_note);
+                    //check for bibtex (do this after save to avoid conflicts)
+                    if( sources.detect_bibtex(new_note.content) ) {
+                        sources.update_from_bibtex(new_note.content, new_note, function(error, data){
+                            if( !error ) {
+                                $('#'+note._id).css({border:'1px solid #01DF01'})
+                            }
+                            _finally( $note, true );
+                        });
+                    } else {
+                        _finally( $note, true );
+                    }
                 }
-                $.log("nrama_notes.update_on_blur: was persisted note _id:"+new_note._id+" for quote:"+new_note.quote_id);
-                $note.attr('id',new_note._id); //may have changed (save can clone)
-                $note = $('#'+new_note._id);   //have to update after changing id attribute
-                $note.data('nrama_note', new_note);
-                _finally( $note, true );
             });
         };
             
@@ -872,6 +897,7 @@
 
 
     var _nrama_init = function(nrama, $) {
+        nrama.$ = $;
         nrama.uuid = exports._make_uuid(uuid);
     
         nrama.settings = exports._make_settings(nrama.uuid);
@@ -879,10 +905,10 @@
             nrama.settings.user_id = _nrama_user;
         }
         nrama._debug = exports._make_debug(nrama.settings, window);
-        nrama.log = exports._make_logging(nrama.settings, $);
+        nrama.log = exports._make_logging(nrama.settings, nrama.$);
 
         nrama.default_callback = function() {
-            $.log('nrama.default_callback called with values:');
+            nrama.$.log('nrama.default_callback called with values:');
             nrama._debug(arguments); 
         }
         
@@ -908,9 +934,9 @@
             local.modal = {
                 method : function(div_str, success, error){
                     if( typeof div_str === 'string') {
-                        var $div = $('<div>'+div_str+'</div>');
-                        $('#id_ok', $div).click(function () {
-                            $.modal.close();
+                        var $div = nrama.$('<div>'+div_str+'</div>');
+                        nrama.$('#id_ok', $div).click(function () {
+                            nrama.$.modal.close();
                             success('ok');
                         });
                         $div.beResetCSS().modal(settings.simplemodal);
@@ -965,7 +991,7 @@
                     try {
                         user_id = error.message.slice(error.message.indexOf('user_id:')+8);
                     } catch(e) {}
-                    $(document).trigger('nrama_403', user_id);
+                    nrama.$(document).trigger('nrama_403', user_id);
                 }
                 callback(error, data);
             }
@@ -1048,7 +1074,7 @@
                 var new_quote = {
                     _id : 'q_'+nrama.uuid(),  
                     type : 'quote',
-                    content : $.trim( range.toString() ),
+                    content : nrama.$.trim( range.toString() ),
                     background_color : nrama.settings.background_color,
                     url : document.location.href,
                     page_id : nrama.page_id,  
@@ -1078,7 +1104,7 @@
                 //update the source before saving any quotes
                 nrama.sources.update_once(quote, function(error, data) {
                     if( error ) {
-                        $.log('error in nrama.quotes.save is due to call to nrama.sources.update_once.')
+                        nrama.$.log('error in nrama.quotes.save is due to call to nrama.sources.update_once.')
                         callback(error, data);
                         return;
                     }
@@ -1098,7 +1124,7 @@
              * @returns true if successful (or quote already displayed), false otherwise
              */
             display : function display(quote) {
-                if( $('.'+quote._id).length != 0 ) {
+                if( nrama.$('.'+quote._id).length != 0 ) {
                     return true;  //quote already displayed
                 }
                 var range = nrama.quotes.get_range(quote);
@@ -1110,13 +1136,13 @@
                     _rangy_highlighter.applyToRange(range);
                 } catch(error) { //seems to be rare
                     if( nrama.settings.debug ) {
-                        $.log("nrama: error using Randy's createCssClassApplier.applyToRange, re-throwing");
+                        nrama.$.log("nrama: error using Randy's createCssClassApplier.applyToRange, re-throwing");
                         throw error;
                     } else {
                         return false;   //silently fail if not in debug mode
                     }
                 }
-                $('.'+quote._id).css('background-color',quote.background_color).data('nrama_quote',quote);
+                nrama.$('.'+quote._id).css('background-color',quote.background_color).data('nrama_quote',quote);
                 return true;
             },
             
@@ -1129,18 +1155,18 @@
              *  good xpointers).
              */
             undisplay : function undisplay(quote) {
-                $('.'+quote._id).
+                nrama.$('.'+quote._id).
                     removeClass('_nrama-quote').
                     css({'border-top':'none', 'border-bottom':'none', 'box-shadow':'none'}).
                     //removeClass(quote._id). //not sure whether I want to do this yet
                     css('background-color','red').
                     animate({'background-color':'black'}, function(){
-                        $(this).css('background-color','inherit');
+                        nrama.$(this).css('background-color','inherit');
                     });
             },
             
             flash : function flash(quote_id) {
-                var $quote_nodes = $('.'+quote_id);
+                var $quote_nodes = nrama.$('.'+quote_id);
                 $quote_nodes.css({'border-top':'1px dashed black',
                                  'border-bottom':'1px dashed black',
                                  'box-shadow':'0 0 20px' + nrama.settings.background_color });
@@ -1153,7 +1179,7 @@
              * request quote delete from server and remove from page if successful
              */
             remove : function remove(quote) {
-                $('.'+quote._id).css('background-color','orange');
+                nrama.$('.'+quote._id).css('background-color','orange');
                 nrama.persist.rm(quote, function(error, data){
                     if( !error ) {
                         nrama.quotes.undisplay(quote);
@@ -1176,12 +1202,12 @@
                         callback(error);
                         return;
                     }
-                    $.log('nrama_quotes.load got ' + data.rows.length + ' quotes from server for user '+user_id);
+                    nrama.$.log('nrama_quotes.load got ' + data.rows.length + ' quotes from server for user '+user_id);
                     //need to sort quotes by the time they were added to page for best chance of displaying them
                     var _sorter = function(a,b){ return a.value.created - b.value.created };
                     data.rows.sort(_sorter);
                     var _failing_quotes = []
-                    $.each(data.rows, function(index,row){
+                    nrama.$.each(data.rows, function(index,row){
                         var quote = row.value;
                         var success = nrama.quotes.display(quote);  //this won't re-display quotes already present
                         if( !success ) {
@@ -1189,7 +1215,7 @@
                         }
                     });
                     if( _failing_quotes.length > 0 ) {
-                        $.log('failed to display quotes with _ids: '+_failing_quotes);
+                        nrama.$.log('failed to display quotes with _ids: '+_failing_quotes);
                     }
                     callback(error, data);
                });
@@ -1202,14 +1228,14 @@
             get_range : function get_range(quote) {
                 var method = quote.xptr_method || '_method_unspecified'; //method for recovering the range from the quote
                 if( ! (method in nrama.serializers) ) {
-                    $.log('unknown xptr_method ('+method+') for quote '+quote._id);
+                    nrama.$.log('unknown xptr_method ('+method+') for quote '+quote._id);
                     return null;
                 }
                 try {
                     var serializer = nrama.serializers[method];
                     return serializer.deserialize(quote.xptr);
                 } catch(error) {
-                    //$.log('nrama.quotes.display FAIL with range = '+quote.xptr+' for quote '+quote._id);
+                    //nrama.$.log('nrama.quotes.display FAIL with range = '+quote.xptr+' for quote '+quote._id);
                     //nrama._debug({catch_error:error});  //not usually informative
                     return null;
                 }
@@ -1219,7 +1245,7 @@
              * @returns a quote object (or null if not found)
              */
             get_from_page : function get_from_page(quote_id) {
-                return $('.'+quote_id).first().data('nrama_quote') || null;
+                return nrama.$('.'+quote_id).first().data('nrama_quote') || null;
             },
             
             /**
@@ -1230,8 +1256,8 @@
              * & varying height)
              */
             calculate_page_order : function calculate_page_order(range) {
-                var doc_height = $(nrama.root_node).height();
-                var doc_width = $(nrama.root_node).width();
+                var doc_height = nrama.$(nrama.root_node).height();
+                var doc_width = nrama.$(nrama.root_node).width();
                 //todo
                 var node = range.startContainer;
                 var page_order = [range.startOffset];   //create in reverse order, will reverse it
@@ -1247,7 +1273,7 @@
              * calculate the offset (.top, .left) of a quote
              */
             offset : function offset(quote_id) {
-                return $('.'+quote_id).first().offset();
+                return nrama.$('.'+quote_id).first().offset();
             }
         }
         
@@ -1262,7 +1288,7 @@
          *  - load notes & quotes;
          *  - configure events (select to create quote, etc)
          */
-        $(document).ready(function(){
+        nrama.$(document).ready(function(){
             /**
              * nrama.page_id is a value s.t. two page instances have the same page_id exactly
              *   when we want to load the same notes & quotes onto those pages.  This is really
@@ -1278,12 +1304,12 @@
              * Might eventually be configured per-site
              * NB nrama.root_note must be defined after document loaded!
              */
-            //nrama.root_node = $('#readOverlay')[0]; 
+            //nrama.root_node = nrama.$('#readOverlay')[0]; 
             nrama.root_node = document.body;
     
             rangy.init();
     
-            $.log('nrama: starting ...');
+            nrama.$.log('nrama: starting ...');
             nrama.ui.dialogs.login_if_necessary(function(error, ignore){
                 if( error ) {
                     nrama._debug({msg:'error logging in',error:error});
@@ -1298,7 +1324,7 @@
             // --- configure events ---
             
             // deal with 403 Forbidden events (session expires, etc)
-            $(document).bind('nrama_403', function(e, user_id){
+            nrama.$(document).bind('nrama_403', function(e, user_id){
                 nrama.ui.dialogs.login(user_id, 'Please login and re-try.', nrama._debug);
             });
             
@@ -1324,7 +1350,7 @@
                     //any modifier key cancels quote creation
                     return;
                 }
-                //$.log("nrama2 caught mouse up");
+                //nrama.$.log("nrama2 caught mouse up");
                 var selection = rangy.getSelection();
                 if( selection.isCollapsed ) {
                     return;
@@ -1333,7 +1359,7 @@
                 //check that not too much text has been selected (avoid accidental selecting loads of doc)
                 if( nrama.settings.max_quote_length > 0 ) {
                     if( range.toString().length > nrama.settings.max_quote_length ){
-                        $.log('nrama no quote -- ' + range.toString().length + ' characters selected.');
+                        nrama.$.log('nrama no quote -- ' + range.toString().length + ' characters selected.');
                         return;
                     }
                 }
@@ -1348,7 +1374,7 @@
                     nrama._debug((function(){ var a={}; a[quote._id]=quote; return a; })()); 
                 }
             };
-            $(document).bind("mouseup", throttle2(create_quote_from_selection) );
+            nrama.$(document).bind("mouseup", throttle2(create_quote_from_selection) );
             
             //click a quote to create a note
             var create_note_from_quote_click = function(e){
@@ -1360,25 +1386,25 @@
                     //alt key causes quote deletion (in separate handler)
                     return;
                 }   
-                var quote = $(this).data('nrama_quote');
+                var quote = nrama.$(this).data('nrama_quote');
                 var note = nrama.notes.create(quote);
                 nrama.notes.display(note);
             };
-            $('._nrama-quote').live('click', throttle2(create_note_from_quote_click) );
+            nrama.$('._nrama-quote').live('click', throttle2(create_note_from_quote_click) );
             
             // alt- or meta-click a quote to delete it (after checking there are no linked notes)
-            $('._nrama-quote').live('click', function(e){
+            nrama.$('._nrama-quote').live('click', function(e){
                 if( e.altKey || e.metaKey ) {
-                    var quote = $(this).data('nrama_quote');
+                    var quote = nrama.$(this).data('nrama_quote');
                     var note_ids = nrama.notes.find(quote);
                     if( note_ids.length != 0 ) {
                         //don't delete quotes with notes attached ...
-                        var $quote_nodes = $('.'+quote._id);
+                        var $quote_nodes = nrama.$('.'+quote._id);
                         $quote_nodes.css({'border-top':'1px dashed red',
                                          'border-bottom':'1px dashed red'})
                         //... instead make the relevant notes bounce
                         var idstr = '#' + note_ids.join(', #');
-                        $(idstr).effect('bounce', function(){
+                        nrama.$(idstr).effect('bounce', function(){
                             $quote_nodes.css({'border-top':'none',
                                              'border-bottom':'none'},500)
                         });
@@ -1389,9 +1415,9 @@
             });
         
             //click on a note to enable editing, bring it to the front and flash the associated quote
-            $('._nrama-note textarea').live('click',function(e){
-                var $textarea = $(this);
-                var $note = $(this).parents('._nrama-note').first();
+            nrama.$('._nrama-note textarea').live('click',function(e){
+                var $textarea = nrama.$(this);
+                var $note = nrama.$(this).parents('._nrama-note').first();
                 nrama.notes.bring_to_front($note);
                 var note= $note.data('nrama_note');
                 nrama.quotes.flash(note.quote_id);
@@ -1399,9 +1425,9 @@
             
             //tabbing out of a note doesn't move to next note (because weird).
             //thank you http://stackoverflow.com/questions/1314450/jquery-how-to-capture-the-tab-keypress-within-a-textbox
-            $('._nrama-note').live('keydown',function(e){
+            nrama.$('._nrama-note').live('keydown',function(e){
                 if( e.which == 9 ) {
-                    $('textarea', this).blur();
+                    nrama.$('textarea', this).blur();
                     e.preventDefault();
                 }
             });       
