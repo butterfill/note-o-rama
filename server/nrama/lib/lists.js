@@ -4,6 +4,7 @@
 var templates = require('kanso/templates'),
     events = require('kanso/events'),
     db = require('kanso/db'),
+    utils = require('./utils'),
     _ = require('./underscore')._,
     nrama_init = require('./nrama2_init').init;
 
@@ -80,7 +81,7 @@ exports.all_users = function (head, req) {
     while( row = getRow() ) {
         var updated_time = '';
         try {
-            updated_time = new Date(parseInt(row.value.max)).toISOString()
+            updated_time = utils.dateToIsoString( new Date(parseInt(row.value.max)) );
         } catch(e) {}
         users.push({
             user_id : row.key,
@@ -117,7 +118,7 @@ exports.sources = function(head, req) {
                     thing.page_id_enc = encodeURIComponent(thing.page_id);
                 }
                 if( thing.updated ) {
-                    thing.updated_time = new Date(thing.updated).toISOString();   //human-readable
+                    thing.updated_time = utils.dateToIsoString( new Date(thing.updated) );   //human-readable
                 }
                 sources.push(thing);
             }
@@ -246,7 +247,7 @@ exports.flow = function(head, req) {
         if( thing.type == 'source' ) {
             var source = thing;
             find_source[source._id] = source;
-            source.updated_time = new Date(source.updated).toISOString();   //nb should not persist this property
+            source.updated_time = utils.dateToIsoString( new Date(source.updated) );   //nb should not persist this property
         }
         if( thing.type == 'quote' ) {
             var quote = thing;
@@ -417,7 +418,7 @@ exports.quotes = function(head, req) {
             var source = thing;
             if( !find_source[source.page_id] ) {
                 find_source[source.page_id] = source;
-                source.updated_time = new Date(source.updated).toISOString();   //nb should not persist this property
+                source.updated_time = utils.dateToIsoString( new Date(source.updated) );   //nb should not persist this property
                 source.users = [];          //nb should not persist this property
             }
             find_source[source.page_id].users.push(source.user_id);

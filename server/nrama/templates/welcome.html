@@ -51,12 +51,14 @@
     
         
     <h2>Pro tips</h2>
-    <ul class="instructions" >
-        <li>Move notes by dragging any edge.</li>
-        <li>alt- or meta- click a quote to delete it.</li>
-        <li>Use #tags in notes (***LINK your tags).</li>
-        <li>Paste a bibtex entry into a note to organise by author (***LINK your authors).</li>
-    </ul>
+    {#userCtx}
+        <ul class="instructions" >
+            <li>Move notes by dragging any edge.</li>
+            <li>alt- or meta- click a quote to delete it.</li>
+            <li>Use #tags in notes {?name}<a href="{baseURL}/users/{name|uc}/tags">(your tags)</a>{/name}.</li>
+            <li>Paste a bibtex entry into a note to organise by author {?name}<a href="{baseURL}/users/{name|uc}/authors">(your authors)</a>{/name}.</li>
+        </ul>
+    {/userCtx}
     
     <hr />
 

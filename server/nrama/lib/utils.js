@@ -5,4 +5,15 @@
  * 
  */
 
- 
+var dateFormat = require('./date_format').dateFormat;
+
+/**
+ * be nice to ie
+ */
+exports.dateToIsoString = function(date) {
+    if( date.toISOString) {
+        return date.toISOString();
+    }
+    return dateFormat(date,"isoDateTime");
+    
+}

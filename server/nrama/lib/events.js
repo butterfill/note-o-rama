@@ -9,6 +9,7 @@ var events = require('kanso/events'),
     session = require('kanso/session'),
     templates = require('kanso/templates'),
     events = require('kanso/events'),
+    _ = require('./underscore')._,
     db = require('kanso/db');
 
 
@@ -64,6 +65,7 @@ events.on('afterResponse', function(info, req, res) {
  * --- modified from the kanso admin app
  * it's live = call only once
  */
+// TODO this duplicates nrama2.js!
 var simplemodal_settings = {
     autoResize: true,
     overlayClose: false,
@@ -74,9 +76,6 @@ var simplemodal_settings = {
         backgroundColor : '#fff',
         border: '8px solid #444',
         padding: '34px'
-    },
-    onShow : function(){
-        _.delay( function() { $('.simplemodal-container').css({height:'auto'}); }, 50 )
     }
 };
 var bindSessionControls = function () {

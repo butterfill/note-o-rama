@@ -4,13 +4,13 @@
  *
  * For dependencies see lib.js
  *
- * To run as bookmarklet (change url; delete the 'now' param if not in developent mode):
- *   javascript:(function(){delete module;delete exports;_nrama_bkmklt=true;_nrama_user='steve';document.body.appendChild(document.createElement('script')).src='http://localhost:5984/nrama/_design/nrama/bkmrklt/nrama2.js?now=new Date().getTime()'; })();
+ * To run as bookmarklet (nrama-local; delete the 'now' query param if not in developent mode):
+ *   javascript:(function(){delete module;delete exports;_NRAMA_BKMRKLT=true;_NRAMA_LOCAL=true;_nrama_user='steve';document.body.appendChild(document.createElement('script')).src='http://localhost:5984/nrama/_design/nrama/bkmrklt/nrama2.js?now=new Date().getTime()'; })();
  *
  * To embed in page:
  *   <script src='lib.min.js" ></script>
  *   <script>
- *     _nrama_bkmklt = false;
+ *     _NRAMA_BKMRKLT = false;
  *   </script>
  *   <script src="nrama2_base.js" ></script>
  *
@@ -47,9 +47,6 @@
  */
 (function(exports){
     
-    var _NRAMA_LIB_URL = "http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/lib.min.js"; //where to load lib from (for bookmarklet only)
-    //var _NRAMA_LIB_URL = "http://localhost:5984/nrama/_design/nrama/bkmrklt/lib.min.js"; //where to load lib from (for bookmarklet only)
-
     /**
      * fix uuids so that it doesn't include dashes (no good for couchDB)
      * also include a trailing N to mark the source
@@ -69,16 +66,19 @@
      * These are some settings for embedded mode (bkmrklt or <script>).
      * Others are added during init (see page_id and root_node).
      * When used on the server, some settings are overriden.
+     * @param lib provides $ (jQuery) and _ (underscore)
      */
-    exports._make_settings = function(nrama_uuid){
-        var $ = jQuery;
+    exports._make_settings = function(nrama_uuid, use_localhost, lib){
         var settings = {
             // -- internals
             is_embedded : true,     //set to false when being used on the server
             debug : true,
             db_name : 'nrama',
-            xdm_url: 'http://noteorama.iriscouch.com/nrama/_design/nrama/_rewrite/xdm/provider.html',
-            //xdm_url : 'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.debug.html',
+            xdm_url: ( use_localhost ?
+                        'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.debug.html'
+                     :
+                        'http://noteorama.iriscouch.com/nrama/_design/nrama/_rewrite/xdm/provider.html'
+                     ),
             // -- user identification
             user_id : '*'+nrama_uuid(true).slice(0,10), //default to random anonymous user
             password : 'new',   //TODO think of clever way to store this
@@ -136,14 +136,14 @@
                     padding: '12px'
                 },
                 onShow : function(){
-                    _.delay( function() { $('.simplemodal-container').css({height:'auto'}); }, 50 )
+                    lib._.delay( function() { lib.$('.simplemodal-container').css({height:'auto'}); }, 50 )
                 }
             }
         };
         settings.note_style.width = settings.note_width+"px";
         settings.note_editor_style.width = settings.note_width+"px";
-        $.extend(settings.note_editor_style, settings.style);
-        $.extend(settings.simplemodal.containerCss, settings.style);
+        lib.$.extend(settings.note_editor_style, settings.style);
+        lib.$.extend(settings.simplemodal.containerCss, settings.style);
         return settings;
     };
         
@@ -200,9 +200,9 @@
     /**
      * @returns the rpc transport for xdm 
      */
-    exports._make_rpc = function(settings, easyXDM, $) {
+    exports._make_rpc = function(settings, easyXDM, lib) {
         var rpc = {};
-        rpc.$ = $;
+        rpc.$ = lib.$;
         
         //local functions allow communication from the server to user
         var local = {};
@@ -259,7 +259,7 @@
         };
         var _wrap_unarray = function( method ) {
             return function( ) {
-                var new_arguments = _.map(arguments, function(arg){
+                var new_arguments = lib._.map(arguments, function(arg){
                     if( typeof(arg) == 'function' ) {
                         return _callback_wrapper(arg);    //wrap because we're putting parameters into array for xdm
                     }
@@ -1159,8 +1159,7 @@
     /**
      * for dialogs (todo -- move event handlers)
      */
-    exports._make_ui = function(settings, session, _debug){
-        var $ = jQuery;
+    exports._make_ui = function(settings, session, _debug, lib){
         var ui = {};
         
         var _update_user_id = function(data) {
@@ -1228,7 +1227,7 @@
                 msg = '';
             }
             var last_error = {message:'you cancelled'};  //report results of last error if user cancels
-            var $div = $('<div><h2><a href="http://www.note-o-rama.com" target="_blank">Note-o-rama</a> : login</h2></div>');
+            var $div = lib.$('<div><h2><a href="http://www.note-o-rama.com" target="_blank">Note-o-rama</a> : login</h2></div>');
             $div.append('<form id="login_form" action="/_session" method="POST">' +
                 '<div class="general_errors">'+msg+'</div>' +
                 '<div class="username field">' +
@@ -1247,20 +1246,20 @@
                 '</div>' +
             '</form>');
             $div.beResetCSS();
-            $('.general_errors, .errors', $div).css({color:'red'});
-            $('#id_name',$div).val(username||'');
-            $('#id_cancel', $div).click(function () {
-                $.modal.close();
+            lib.$('.general_errors, .errors', $div).css({color:'red'});
+            lib.$('#id_name',$div).val(username||'');
+            lib.$('#id_cancel', $div).click(function () {
+                lib.$.modal.close();
                 callback(last_error);
             });
-            $('form', $div).submit(function (ev) {
+            lib.$('form', $div).submit(function (ev) {
                 ev.preventDefault();
-                var username = $('input[name="name"]', $div).val();
-                var password = $('input[name="password"]', $div).val();
-                $('.username .errors', $div).text(
+                var username = lib.$('input[name="name"]', $div).val();
+                var password = lib.$('input[name="password"]', $div).val();
+                lib.$('.username .errors', $div).text(
                     username ? '': 'Please enter a username'
                 );
-                $('.password .errors', $div).text(
+                lib.$('.password .errors', $div).text(
                     password ? '': 'Please enter a password'
                 );
                 if (username && password) {
@@ -1269,10 +1268,10 @@
                         if( error ) {
                             last_error = error;
                             var error_msg = error.message || "Error "+(error.status || '')+" logging in (network connection?)";
-                            $('.general_errors', $div).text(error_msg);
+                            lib.$('.general_errors', $div).text(error_msg);
                         } else {
-                            $($div).fadeOut('slow', function () {
-                                $.modal.close();
+                            lib.$($div).fadeOut('slow', function () {
+                                lib.$.modal.close();
                                 callback(null, data);
                             });
                         }
@@ -1281,9 +1280,9 @@
                 return false;
             });
             $div.modal(settings.simplemodal);
-            _.delay( function(){
+            lib._.delay( function(){
                 if( username ) {
-                    $('#id_password').focus();
+                    lib.$('#id_password').focus();
                 }
             }, 50 );
         };
@@ -1291,7 +1290,7 @@
         ui.dialogs.warn_user_discrepancy = function(name, callback) {
             if( !callback ) { callback = function(){}; }
             var who = settings.user_id[0]=='*' ? 'anonymous users' : settings.user_id;
-            $.log('user logged in as '+name+' but this bookmarklet was configured for '+who );
+            lib.$.log('user logged in as '+name+' but this bookmarklet was configured for '+who );
             callback(null, 'not implemented yet');
         };
         return ui;
@@ -1304,12 +1303,18 @@
      * caution: some init requires page load to be complete
      * @param callback{Function} is called when init done.
      */
-    var _nrama_init = function(nrama, jQuery, callback) {
+    var _nrama_init = function(nrama, use_localhost, jQuery, callback) {
         nrama.$ = jQuery;
 
+        var lib = { //provide dependencies as  map
+            b64_hmac_md5 : window.b64_hmac_md5,
+            rangy : window.rangy,
+            BibtexParser : window.BibtexParser,
+            $ : nrama.$,
+            _ : window._
+        };
         nrama.uuid = exports._make_uuid(uuid);
-
-        nrama.settings = exports._make_settings(nrama.uuid);
+        nrama.settings = exports._make_settings(nrama.uuid, use_localhost, lib);
         //detect user if set by bkmrklt or script (will be overriden by session cookies)
         if( typeof _nrama_user !== 'undefined' && _nrama_user ) {
             nrama.settings.user_id = _nrama_user;
@@ -1317,18 +1322,10 @@
 
         nrama._debug = exports._make_debug(nrama.settings, window);
         nrama.log = exports._make_logging(nrama.settings, nrama.$);
-        nrama.rpc = exports._make_rpc(nrama.settings, easyXDM, nrama.$);
+        nrama.rpc = exports._make_rpc(nrama.settings, easyXDM, lib);
         nrama.db = exports._make_db(nrama.rpc, nrama.$);
         nrama.session = exports._make_session(nrama.rpc);
         nrama.persist = exports._make_persist(nrama.db, nrama.session, nrama.uuid, nrama._debug);
-        
-        var lib = {
-            b64_hmac_md5 : window.b64_hmac_md5,
-            rangy : window.rangy,
-            BibtexParser : window.BibtexParser,
-            $ : jQuery,
-            _ : window._
-        };
         nrama.serializers = exports._make_serializers(nrama.settings, lib);
         nrama.sources = exports._make_sources(nrama.settings, nrama.persist, nrama._debug, lib);
         nrama.quotes = exports._make_quotes(nrama.settings, nrama.uuid, nrama.persist,
@@ -1336,7 +1333,7 @@
                                             lib);
         nrama.notes = exports._make_notes(nrama.settings, nrama.uuid, nrama.persist,
                                           nrama.sources, nrama.quotes, nrama._debug);
-        nrama.ui = exports._make_ui(nrama.settings, nrama.session, nrama._debug);
+        nrama.ui = exports._make_ui(nrama.settings, nrama.session, nrama._debug, lib);
 
         /**
          * main setup:
@@ -1493,7 +1490,7 @@
             });
             
             // === init done
-            callback();
+            callback(nrama.$);
         });
     }
     
@@ -1503,43 +1500,48 @@
      */
     if( typeof exports !== 'undefined' ) {    //exports undefined means nrama is already loaded -- bookmarklet may be called more than once)
 
-        if( typeof _nrama_bkmklt === 'undefined' && typeof require !== 'undefined' ) {
+        if( typeof _NRAMA_BKMRKLT === 'undefined' && typeof require !== 'undefined' ) {
             //this script is being used as a commonJS module
             //already defined exports; initialisation is handled in another module.
         } else {
-            if( typeof _nrama_bkmklt === 'undefined' || !_nrama_bkmklt ) {
+            if( typeof _NRAMA_BKMRKLT === 'undefined' || !_NRAMA_BKMRKLT ) {
                 //run as embedded <script> 
                 _nrama_init(exports, jQuery, function(){
                     exports._initalized = true;
                 });
             } else {
                 // run in bookmarklet mode
-                // first remove head -- for some reason this seems to help avoid clashes in FF
-                var old_head = document.head.innerHTML;
-                var restore_document_head = function(){
-                    document.head.innerHTML = old_head;
+                // first remove head if we can -- for some reason this seems to help avoid clashes in FF
+                var get_head = function(){ return document.getElementsByTagName('head')[0]; };
+                var old_head_html = get_head().innerHTML;
+                var restore_document_head = function($){
+                    $(old_head_html).not('script').appendTo('head');
                 }; 
                 try {
-                    document.head.innerHTML = '';
+                    get_head().innerHTML = '';
                 } catch(e) {
                     //alt. method -- can't set innerHTML with safari (others?)
-                    var head = document.head;
+                    var head = get_head();
                     var children = [];
-                    while(head.firstChild){
+                    while(head.firstChild) {
                         var child = head.firstChild;
                         if( child.nodeName !== 'SCRIPT' ) {
                             children.push( child );
                         }
                         head.removeChild( child )
                     }
-                    restore_document_head = function(){
-                        while( children.length ) {
-                            head.appendChild( children.pop() );
-                        }
+                    restore_document_head = function($) {
+                        $('head').append(children);
                     }
                 }
      
                 // load libraries & only start work after they loaded
+                var use_localhost = typeof _NRAMA_LOCAL !== 'undefined' && _NRAMA_LOCAL;
+                var lib_url = (  use_localhost ?
+                                    "http://localhost:5984/nrama/_design/nrama/bkmrklt/lib.min.js"
+                                :
+                                    "http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/lib.min.js"
+                              );
                 // adapted from jQuery ajaxTransport, thank you also http://stackoverflow.com/questions/756382/bookmarklet-wait-until-javascript-is-loaded
                 var loadScript2 = function(url, callback) {
                     var head = document.head || document.getElementsByTagName( "head" )[0] || document.documentElement;
@@ -1564,21 +1566,21 @@
                     // Use insertBefore instead of appendChild  to circumvent an IE6 bug.
                     head.insertBefore( script, head.firstChild );
                 }
-                loadScript2(_NRAMA_LIB_URL, function() {
+                loadScript2(lib_url, function() {
                     jQuery.noConflict();
-                    _nrama_init(exports, jQuery, function(){
-                        restore_document_head();
+                    _nrama_init(exports, use_localhost, jQuery, function(jQuery){
+                        restore_document_head(jQuery);
                         exports._initalized = true;
                     });
                 });
             }
         }
     }
-// if exports is not defined, or if _nrama_bkmklt exists, attach everything to this.nrama
+// if exports is not defined, or if _NRAMA_BKMRKLT exists, attach everything to this.nrama
 //     but if nrama is already defined, do nothing (send undefined)
 // otherwise behave as a commonJS module
 })(
-    ( typeof exports !== 'undefined' && typeof _nrama_bkmklt === 'undefined' ) ?
+    ( typeof exports !== 'undefined' && typeof _NRAMA_BKMRKLT === 'undefined' ) ?
         exports
     :(
         ( typeof nrama === 'undefined' || !nrama._initalized ) ?
