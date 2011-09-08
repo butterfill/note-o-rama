@@ -34,7 +34,8 @@ module.exports = [
             end_key: [":user"],
             start_key : [":user", {}],
             include_docs : 'true',
-            descending : 'true'
+            descending : 'true',
+            limit : "250"
         } 
     },
     {

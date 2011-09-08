@@ -5,7 +5,7 @@
  * For dependencies see lib.js
  *
  * To run as bookmarklet (nrama-local; delete the 'now' query param if not in developent mode):
- *   javascript:(function(){delete module;delete exports;_NRAMA_BKMRKLT=true;_NRAMA_LOCAL=true;_nrama_user='steve';document.body.appendChild(document.createElement('script')).src='http://localhost:5984/nrama/_design/nrama/bkmrklt/nrama2.js?now=new Date().getTime()'; })();
+ *   javascript:(function(){delete module;delete exports;_NRAMA_BKMRKLT=true;_NRAMA_LOCAL=true;_NRAMA_USER='steve';document.body.appendChild(document.createElement('script')).src='http://localhost:5984/nrama/_design/nrama/bkmrklt/nrama2.js?now=new Date().getTime()'; })();
  *
  * To embed in page:
  *   <script src='lib.min.js" ></script>
@@ -73,7 +73,7 @@
             // -- internals
             is_embedded : true,     //set to false when being used on the server
             debug : true,
-            db_name : 'nrama',
+            nrama_version : 2.0,
             xdm_url: ( use_localhost ?
                         'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.debug.html'
                      :
@@ -85,7 +85,7 @@
             me_only : true,    //show only my notes and quotes
             // -- quotes & note settings
             note_default_text : 'type now',
-            background_color : '#FCF6CF',   //for quotes
+            background_color : '#FFFC00', //for quotes todo: I like '#FCF6CF' but can't be seen on some screens -- must implement per user settings soon
             background_color_other : 'rgba(240,240,240,0.5)',   //color for other ppl's notes and quotes (TODO)
             note_background_color : 'rgba(240,240,240,0.9)', 
             persist_started_color : '#FFBF00',  //#FFBF00=orange
@@ -207,7 +207,7 @@
         //local functions allow communication from the server to user
         var local = {};
         local.get_version = {
-            method : function(success, error){ success("0.2"); }
+            method : function(success, error){ success( settings.nrama_version ); }
         };
         local.msg = {
             method : function(message, success, error){
@@ -334,7 +334,7 @@
      * @param session{Object} implements (a subset of) kanso's session module
      * @param uuid{function} returns a uuid synchroniously
      */
-    exports._make_persist = function(db, session, uuid, _debug) {
+    exports._make_persist = function(nrama_settings, db, session, uuid, _debug) {
         persist = {};
         persist.$ = jQuery;
 
@@ -362,6 +362,11 @@
                 clone_on_conflict : false   //e.g. set to true used when saving notes
             };
             var settings = persist.$.extend(true, {}, defaults, options);
+            
+            //add nrama_version if not present
+            if( !thing.nrama_version ) {
+                thing.nrama_version = nrama_settings.nrama_version;
+            }
 
             db.saveDoc(thing, function(error, data){
                 if( error ) {
@@ -500,21 +505,32 @@
         };
         
         /**
-         * @param attrs must contain page_id & user_id ; can be note or quote
+         * @param attrs must contain page_id & user_id ; can be note or quote in which case only page_id and user_id are used
          */
         sources.create = function(attrs) {
-            var defaults = {
-                tags : []     //the persist.update will append, not remove tags
-            };
-            if( settings.is_embedded ) {
-                defaults.page_title = document.title;
-                defaults.url = document.location.href;
+            var new_source;
+            if( !attrs.type || attrs.type === 'source' ) {
+                new_source = sources.$.extend(true, attrs, {});
+            } else {
+                //@param attrs is a note or quote or some such
+                new_source = {
+                    page_id : attrs.page_id,
+                    user_id : attrs.user_id,
+                    url : ( attrs.url ? attrs.url : undefined ),
+                    page_title : ( attrs.page_title ? attrs.page_title : undefined )
+                };
             }
-            var source = sources.$.extend(true, defaults, attrs);
-            source._id = sources.calculate_id(source);  //nb must overwrite _id in case called with note or quote object!
-            source.type = 'source';
-            return source;
-        }
+            if( settings.is_embedded ) {
+                var defaults = {
+                    page_title : document.title,
+                    url : document.location.href
+                };
+                new_source = sources.$.extend(true, defaults, new_source);
+            }
+            new_source._id = sources.calculate_id(new_source);  
+            new_source.type = 'source';
+            return new_source;
+        };
         
         /**
          * Create or update a source.
@@ -526,7 +542,7 @@
         sources.update = function(thing, callback) {
             var source = ( thing.type == 'source' ? thing : sources.create(thing) );
             persist.update(source, callback);
-        }
+        };
 
         /**
          * call update once per source only (but if it fails, will repeat next
@@ -1316,8 +1332,8 @@
         nrama.uuid = exports._make_uuid(uuid);
         nrama.settings = exports._make_settings(nrama.uuid, use_localhost, lib);
         //detect user if set by bkmrklt or script (will be overriden by session cookies)
-        if( typeof _nrama_user !== 'undefined' && _nrama_user ) {
-            nrama.settings.user_id = _nrama_user;
+        if( typeof _NRAMA_USER !== 'undefined' && _NRAMA_USER ) {
+            nrama.settings.user_id = _NRAMA_USER;
         }
 
         nrama._debug = exports._make_debug(nrama.settings, window);
@@ -1325,7 +1341,8 @@
         nrama.rpc = exports._make_rpc(nrama.settings, easyXDM, lib);
         nrama.db = exports._make_db(nrama.rpc, nrama.$);
         nrama.session = exports._make_session(nrama.rpc);
-        nrama.persist = exports._make_persist(nrama.db, nrama.session, nrama.uuid, nrama._debug);
+        nrama.persist = exports._make_persist(nrama.settings, nrama.db, nrama.session,
+                                              nrama.uuid, nrama._debug);
         nrama.serializers = exports._make_serializers(nrama.settings, lib);
         nrama.sources = exports._make_sources(nrama.settings, nrama.persist, nrama._debug, lib);
         nrama.quotes = exports._make_quotes(nrama.settings, nrama.uuid, nrama.persist,
@@ -1500,13 +1517,14 @@
      */
     if( typeof exports !== 'undefined' ) {    //exports undefined means nrama is already loaded -- bookmarklet may be called more than once)
 
+        var use_localhost = typeof _NRAMA_LOCAL !== 'undefined' && _NRAMA_LOCAL;
         if( typeof _NRAMA_BKMRKLT === 'undefined' && typeof require !== 'undefined' ) {
             //this script is being used as a commonJS module
             //already defined exports; initialisation is handled in another module.
         } else {
             if( typeof _NRAMA_BKMRKLT === 'undefined' || !_NRAMA_BKMRKLT ) {
-                //run as embedded <script> 
-                _nrama_init(exports, jQuery, function(){
+                //run as embedded <script>
+                _nrama_init(exports, use_localhost, jQuery, function(){
                     exports._initalized = true;
                 });
             } else {
@@ -1536,7 +1554,6 @@
                 }
      
                 // load libraries & only start work after they loaded
-                var use_localhost = typeof _NRAMA_LOCAL !== 'undefined' && _NRAMA_LOCAL;
                 var lib_url = (  use_localhost ?
                                     "http://localhost:5984/nrama/_design/nrama/bkmrklt/lib.min.js"
                                 :

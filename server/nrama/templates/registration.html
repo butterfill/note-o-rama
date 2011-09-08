@@ -20,18 +20,18 @@
                 <span {?name}style="color:grey; text-decoration: line-through;"{/name}>
                   (You don't need to sign up, but if you choose not to others may edit
                   or delete your notes.)
-                <span>
+                </span>
               </p>
             
               <p>Step 2: drag the link below to the bookmark bar in your browser (or otherwise bookmark it).</p>
               
               <p style="text-align:center">
                 {^name}
-                <a href="javascript:(function(){delete module;delete exports;_NRAMA_BKMRKLT=true;{?anon_user_name}_nrama_user='{anon_user_name}';{/anon_user_name}document.body.appendChild(document.createElement('script')).src='http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/nrama2.js'; })();">
+                <a href="javascript:(function(){delete module;delete exports;_NRAMA_BKMRKLT=true;{?anon_user_name}_NRAMA_USER='{anon_user_name}';{/anon_user_name}document.body.appendChild(document.createElement('script')).src='http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/nrama2.js'; })();">
                   Note-o-rama Bookmarklet -- Anon. User {anon_user_name}
                 </a>
                 {:else}
-                <a href="javascript:(function(){delete module;delete exports;_NRAMA_BKMRKLT=true;_nrama_user='{name}';document.body.appendChild(document.createElement('script')).src='http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/nrama2.js'; })();">
+                <a href="javascript:(function(){delete module;delete exports;_NRAMA_BKMRKLT=true;_NRAMA_USER='{name}';document.body.appendChild(document.createElement('script')).src='http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/nrama2.js'; })();">
                   Note-o-rama Bookmarklet -- {name}
                 </a>
                 {/name}
@@ -48,7 +48,7 @@
                 <h2 style="margin-top: 0;">... or try it first</h2>
                 <p>Click to
                     {^name}
-                    <a href="javascript:(function(){delete module;delete exports;_NRAMA_BKMRKLT=true;_nrama_user='*tryit';document.body.appendChild(document.createElement('script')).src='http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/nrama2.js'; })();">
+                    <a href="javascript:(function(){delete module;delete exports;_NRAMA_BKMRKLT=true;_NRAMA_USER='*tryit';document.body.appendChild(document.createElement('script')).src='http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/nrama2.js'; })();">
                         enable note-o-rama for this page.
                     </a>
                     {:else}
@@ -71,7 +71,7 @@
                     <li>If you come back to this page, notes will
                         re-load when you
                         {^name}
-                          <a href="javascript:(function(){delete module;delete exports;_NRAMA_BKMRKLT=true;_nrama_user='*tryit';document.body.appendChild(document.createElement('script')).src='http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/nrama2.js'; })();">
+                          <a href="javascript:(function(){delete module;delete exports;_NRAMA_BKMRKLT=true;_NRAMA_USER='*tryit';document.body.appendChild(document.createElement('script')).src='http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/nrama2.js'; })();">
                               enable note-o-rama</a>.
                         {:else}
                           enable note-o-rama.

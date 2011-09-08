@@ -1,12 +1,12 @@
-/*global $: false, kanso: true */
-
 /**
  * modified to use independently of kanso.
  * added doUpdate for updates (only partially implemented, currently a nasty hack)
  *
  * NB: before using be sure to define:
- *  - settings.db_name
- *  - settings.app_name
+ *  - settings.name
+ *  - settings.baseURL
+ *  - session (use session.ex-kanso.js)
+ *  - $ (jQuery)
  *  
  * converted from CommonJS to ordinary, embeddable JS:
  *  exports becomes db
@@ -20,31 +20,6 @@
  * @module
  */
 
-/**
- * NB: do something like this before using db.nrama.js
- *
-settings = {
-    db_name : 'nrama',         // <-- NB, set this (same as 'name' in kanso.json in the root of your project)
-    app_name : 'nrama'
-}
-*/
-
-
-/**
- * Module dependencies
- * --- we'll fake these ---
- * 
-var utils = require('./utils'),
-    settings = require('./settings'),
-    session = null;
- */
-
-/* Avoid a circular require in CouchDB */
-/*
-if (utils.isBrowser) {
-    session = require('./session');     //This IS needed, use session.nrama.js
-}
-*/
 
 // This is no longer CommonJS
 db = {};

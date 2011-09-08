@@ -61,7 +61,8 @@ var _init = function(){
     nrama.log = nrama_constructors._make_logging(nrama.settings, $);
     nrama.db = db;
     nrama.session = session;
-    nrama.persist = nrama_constructors._make_persist(nrama.db, nrama.session, nrama.uuid, nrama._debug);
+    nrama.persist = nrama_constructors._make_persist(nrama.settings, nrama.db, nrama.session,
+                                                     nrama.uuid, nrama._debug);
     nrama.sources = nrama_constructors._make_sources(nrama.settings, nrama.persist, nrama._debug, lib);
     
     nrama.notes = nrama_constructors._make_notes(nrama.settings, nrama.uuid, nrama.persist,
