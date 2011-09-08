@@ -4,7 +4,7 @@
  *
  * For dependencies see lib.js
  *
- * To run as bookmarklet (nrama-local; delete the 'now' query param if not in developent mode):
+ * To run as bookmarklet (nb _NRAMA_LOCAL = load everything from localhost; delete the 'now' query param if not in developent mode):
  *   javascript:(function(){delete module;delete exports;_NRAMA_BKMRKLT=true;_NRAMA_LOCAL=true;_NRAMA_USER='steve';document.body.appendChild(document.createElement('script')).src='http://localhost:5984/nrama/_design/nrama/bkmrklt/nrama2.js?now=new Date().getTime()'; })();
  *
  * To embed in page:
@@ -77,7 +77,7 @@
             xdm_url: ( use_localhost ?
                         'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.debug.html'
                      :
-                        'http://noteorama.iriscouch.com/nrama/_design/nrama/_rewrite/xdm/provider.html'
+                        'http://note-o-rama.com/xdm/provider.html'
                      ),
             // -- user identification
             user_id : '*'+nrama_uuid(true).slice(0,10), //default to random anonymous user
@@ -1557,7 +1557,7 @@
                 var lib_url = (  use_localhost ?
                                     "http://localhost:5984/nrama/_design/nrama/bkmrklt/lib.min.js"
                                 :
-                                    "http://noteorama.iriscouch.com/nrama/_design/nrama/bkmrklt/lib.min.js"
+                                    "http://note-o-rama.com/bkmrklt/lib.min.js"
                               );
                 // adapted from jQuery ajaxTransport, thank you also http://stackoverflow.com/questions/756382/bookmarklet-wait-until-javascript-is-loaded
                 var loadScript2 = function(url, callback) {

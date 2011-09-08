@@ -10,6 +10,7 @@
 module.exports = [
     {from: '/static/*', to: 'static/*'},
     {from: '/xdm/*', to: 'xdm/*'},
+    {from: '/bkmrklt/*', to: 'bkmrklt/*'},
     // -- for the nrama application
     {
         from : '/sources',              //all sources

@@ -1,6 +1,0 @@
-This is note-o-rama, a second attempt.
-
-The client part works as a javascript bookmarklet (browser extensions might follow).
-
-The server part runs on couchdb, and uses caolan's wonderful kanso.
-
