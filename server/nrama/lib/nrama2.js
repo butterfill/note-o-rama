@@ -295,7 +295,9 @@
                 if( error && ( error.status === 403 || error.error === 'forbidden' ) ) {
                     var user_id = '';
                     try {
-                        user_id = error.message.slice(error.message.indexOf('user_id:')+8);
+                        if( error.message.indexOf('user_id:') !== -1 ) {
+                            user_id = error.message.slice(error.message.indexOf('user_id:')+8);
+                        }
                     } catch(e) {}
                     db.$(document).trigger('nrama_403', user_id);
                 }
@@ -320,11 +322,48 @@
     /**
      * @return a subset of kanso's session module, same API
      */
-    exports._make_session = function(rpc) {
+    exports._make_session = function(rpc, lib) {
+        /**
+         * wrap session.* to fire event telling us which user is logged in
+         * (if any)
+         * TODO : This doesn't work for session.login (need different wrappter  )
+         */
+        var _wrap_callback = function(callback) {
+            return function(error, data) {
+                if( !error ) {
+                    if( data && data.userCtx && data.userCtx.name ) {
+                        lib.$(document).trigger( 'nrama_user_id', data.userCtx.name );
+                    } else {
+                        //null data means not logged in
+                        lib.$(document).trigger( 'nrama_user_id', null );
+                    }
+                }
+                callback(error,data);
+            };
+        };
+        var _wrap = function( fn ) {
+            return function() {
+                var args = Array.prototype.slice.call(arguments);
+                args[args.length-1] = _wrap_callback( args[args.length-1] );
+                return fn.apply(null, args);
+            }
+        }
+        /**
+         * needs separate wrapper because callback not called with userCtx.name
+         */
+        var login = function(username, password, callback) {
+            var user_id = username;
+            rpc.session_login(username, password, function(error, data) {
+                if( !error) {
+                    lib.$(document).trigger( 'nrama_user_id', user_id );
+                }
+                callback(error, data);
+            });
+        };
         return {
-            login : rpc.session_login,
-            logout : rpc.session_logout,
-            info : rpc.session_info 
+            login : login,
+            logout : _wrap( rpc.session_logout ),
+            info : _wrap( rpc.session_info ) 
         };
     };
 
@@ -1340,7 +1379,7 @@
         nrama.log = exports._make_logging(nrama.settings, nrama.$);
         nrama.rpc = exports._make_rpc(nrama.settings, easyXDM, lib);
         nrama.db = exports._make_db(nrama.rpc, nrama.$);
-        nrama.session = exports._make_session(nrama.rpc);
+        nrama.session = exports._make_session(nrama.rpc, lib);
         nrama.persist = exports._make_persist(nrama.settings, nrama.db, nrama.session,
                                               nrama.uuid, nrama._debug);
         nrama.serializers = exports._make_serializers(nrama.settings, lib);

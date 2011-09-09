@@ -7,7 +7,7 @@ var types = require('kanso/types'),
 
 
 module.exports = function (newDoc, oldDoc, userCtx) {
-    types.validate_doc_update(app_types, newDoc, oldDoc, userCtx);
+    //types.validate_doc_update(app_types, newDoc, oldDoc, userCtx);
     
     /**
      * if user_id of a documentcontains @, must be logged in as that user to make changes

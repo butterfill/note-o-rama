@@ -192,14 +192,19 @@ exports.tags = function(head, req) {
     var tags = [];
     
     var row ;
+    var tag_url_base = false;
+    if (req && req.userCtx && req.userCtx.baseURL && req.query) {
+        url_base = req.userCtx.baseURL + (req.query.user ? '/users/'+encodeURIComponent(req.query.user) + '/' : '');
+    }
     while( row = getRow() ) {
         if( !row.key || !row.key[tag_index_in_key] ) {
             continue;
         }
+        var tag_name = row.key[tag_index_in_key];
         tags.push({
-           text : row.key[tag_index_in_key],
+           text : tag_name,
            weight : row.value,
-           url : "/"
+           url : ( tag_url_base ? tag_url_base + tag_name : '#' )
         });
     }
     var content = templates.render('tags.html', req, _({
@@ -209,6 +214,7 @@ exports.tags = function(head, req) {
 
     if( req.client ) {
         window.tags = tags; //todo remove
+        // nrama_page_loaded event is created by having footer_event.html embedded in page
         $(document).one('nrama_page_loaded', function(){
             $('#tag_cloud').jQCloud(tags, {
                 callback : function() {

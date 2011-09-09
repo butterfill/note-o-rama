@@ -2,7 +2,7 @@
 
 <div class="instructions">
     <p style="margin-top:0;">Add notes and highlights to any web page.
-        <br />Organise and review your notes by source, author and #tag.
+        <br />Organise and review your notes and quotes by source, author and #tag.
     <p>
     
     <div>
@@ -52,13 +52,14 @@
     </p>
     
         
-    <h2>Pro tips</h2>
+    <h2>Tips</h2>
     {#userCtx}
         <ul class="instructions" >
             <li>Move notes by dragging any edge.</li>
             <li>alt- or meta- click a quote to delete it.</li>
-            <li>Use #tags in notes {?name}<a href="{baseURL}/users/{name|uc}/tags">(your tags)</a>{/name}.</li>
-            <li>Paste a bibtex entry into a note to organise by author {?name}<a href="{baseURL}/users/{name|uc}/authors">(your authors)</a>{/name}.</li>
+            <li>Use #tags in notes{?name}<a href="{baseURL}/users/{name|uc}/tags"> (your tags)</a>{/name}.</li>
+            <li>Paste a bibtex entry into a note to organise by author{?name} <a href="{baseURL}/users/{name|uc}/authors">(your authors)</a>{/name}.</li>
+            <li>Hold shift, ctrl, meta or alt while selecting text if you don't want to quote (highlight) it.</li>
         </ul>
     {/userCtx}
     
@@ -66,6 +67,6 @@
 
     <h2>About</h2>
     <p>Note-o-rama is copyright (c) 2007-11 Stephen A. Butterfill.
-        <a href="https://github.com/butterfill/note-o-rama" target="_blank">Source code is publicly availble.</a>
+        <a href="https://github.com/butterfill/note-o-rama" target="_blank">The code is open source.</a>
     </p>
 </div>

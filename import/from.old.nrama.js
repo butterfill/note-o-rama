@@ -1,3 +1,18 @@
+/**
+ * import data from nrama1 (postgresql database) and save it in nrama2
+ * database.
+ * This can be re-run safely: everything has a determinate _id 
+ *
+ * it runs on node, using pg (for postgres) & cradle (for couchdb)
+ *
+ * Use:
+ *   $ node from.old.nrama.js
+ *   > get_everything(function(){save_everything(cb)}}
+ *
+ * [tmp] pre: doc_count: 9920,
+ */
+
+
 var sys = require('sys'),
      pg = require('pg'),
      cradle = require('cradle'),
@@ -242,10 +257,15 @@ get_tags = function(callback) {
 
 // -- output : push to couchdb
 
+/*
 var couch_connection = new(cradle.Connection)('127.0.0.1', 5984, {
   auth: { username: 'steve', password: 'newstar' }
 });
-var couchdb = couch_connection.database('nrama');
+*/
+couch_connection = new(cradle.Connection)('noteorama.iriscouch.com', 5984, {
+  auth: { username: 'steve', password: 'newstar' }
+});
+couchdb = couch_connection.database('nrama');
 
 
 
