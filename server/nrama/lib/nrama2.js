@@ -47,6 +47,13 @@
  */
 (function(exports){
     
+    if( typeof exports === 'undefined' ) {
+        try{
+            $.log('nrama: cancelled because already loaded.');
+        } catch(e) {}
+        return;
+    }
+    
     /**
      * fix uuids so that it doesn't include dashes (no good for couchDB)
      * also include a trailing N to mark the source
