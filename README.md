@@ -18,10 +18,11 @@ nrama2.js doubles as a library for the server part. (That's part of the
 appeal of couchdb for this project: chunks of the bookmarklet code also 
 work on the server.))
 
-The server part uses caolan's wonderful kanso (also on github).
+The server part uses caolan's wonderful 
+[kanso](https://github.com/caolan/kanso).
 
 (In case you saw the earlier incarnation of Note-o-rama (2007-2011), 
-this is a second attempt completely re-written. It works in much the 
+this is a second attempt and completely re-written. It works in much the 
 same way except that it doesn't depend on Firefox internals and very 
 much less code is involved as there are some terrific libraries which 
 take care of the hard parts.)
