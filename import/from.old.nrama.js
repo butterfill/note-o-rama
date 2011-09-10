@@ -257,14 +257,15 @@ get_tags = function(callback) {
 
 // -- output : push to couchdb
 
-/*
+
 var couch_connection = new(cradle.Connection)('127.0.0.1', 5984, {
-  auth: { username: 'steve', password: 'newstar' }
+  auth: { username: 'steve', password: 'abc' }
+});
+/*
+couch_connection = new(cradle.Connection)('noteorama.iriscouch.com', 5984, {
+  auth: { username: 'steve', password: 'abc' }
 });
 */
-couch_connection = new(cradle.Connection)('noteorama.iriscouch.com', 5984, {
-  auth: { username: 'steve', password: 'newstar' }
-});
 couchdb = couch_connection.database('nrama');
 
 

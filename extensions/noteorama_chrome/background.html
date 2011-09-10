@@ -1,0 +1,57 @@
+<!--
+ * Note-o-rama Copyright (c) 2011 Stephen A. Butterfill
+ *
+ * License GPL 3.0
+-->
+<html>
+  <head>
+    <script>
+      console.log('nrama extension loading ...');
+      
+      // listner for extension's button in the browser bar
+      chrome.browserAction.onClicked.addListener(function(tab) {
+        
+        if( !window.localStorage || !window.localStorage.nramaUser ) {
+          chrome.tabs.create({ url: 'options.html' });
+          return;
+        }
+        chrome.tabs.executeScript(null, {code:"_NRAMA_USER='"+window.localStorage.nramaUser+"';"});
+        
+        // -- METHOOD 1
+        /**
+         * Use isolated world for scripts.
+         * Problem is that rangy doesn't initialise properly, something to do
+         * with iframes, see rangy-core-test.js
+         * Also easyXDM won't work in this mode -- that's because it needs to make
+         * and use an iframe (frame is undefined causing error at line 1613 of easyXDM.js)
+         * But in an extension we don't need RPC.
+         * So instead we load a subset of the main lib.js,
+         * then we load a customised rangy,
+         * then we configure and load the kanso db and session files
+         *  (Note that kanso's session had to be modified to use baseURL)
+         */
+        chrome.tabs.executeScript(null, {code:"console.log('nrama extension starting ...');"});
+        chrome.tabs.executeScript(null, {file: "lib.extension.js"}, function(){
+          chrome.tabs.executeScript(null, {file: "rangy-core-test.js"}, function(){
+            chrome.tabs.executeScript(null, {file: "rangy-cssclassapplier.js"}, function(){
+              chrome.tabs.executeScript(null, {file: "rangy-serializer.js"}, function(){
+                chrome.tabs.executeScript(null, {file: "nrama2_chrome_config.js"}, function(){
+                  chrome.tabs.executeScript(null, {file: "db.ex-kanso.js"}, function(){
+                    chrome.tabs.executeScript(null, {file: "session.ex-kanso.js"}, function(){
+                      chrome.tabs.executeScript(null, {file: "nrama2.js"});
+                    });
+                  });
+                });
+              });
+            });
+          });
+        });
+
+        // -- METHOOD 2
+        //implant the scripts by adding them to the head of the document
+        // (disadvantage: no isolation from scripts already on the page)
+        //chrome.tabs.executeScript(null, {file:'nrama2_chrome_implant.js'});
+      });
+    </script>
+  </head>
+</html>

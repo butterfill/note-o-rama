@@ -1,0 +1,121 @@
+<!DOCTYPE>
+<!--
+ * Note-o-rama Copyright (c) 2011 Stephen A. Butterfill
+ * License : GPL 3.0
+ -->
+<html>
+<head>
+  <title>Options for Note-o-rama</title>
+  <style>
+    body {
+      font-family:Palatino, 'Palatino Linotype', Georgia, Times, 'Times New Roman', serif;;
+      margin:2em;
+    }
+    
+    
+    h1 {
+      margin-bottom : 0;
+    }
+    
+    #header {
+      margin-bottom: 0;
+    }
+    
+    .section-header {
+      background:#ebeff9;
+      border-top:1px solid #b5c7de;
+      font-size:99%;
+      padding:3px 0 2px 5px;
+      font-weight:bold;
+      margin-bottom:1em;
+      margin-top:4em;
+    }
+    
+    .section-header.first {
+      margin-top:1em;
+    }
+    
+    #custom-domain {
+      width:300px;
+      margin-left:2px;
+    }
+    
+    p {
+      margin-top : 0;
+    }
+    
+    #footer {
+      margin-top:4em;
+    }
+  </style>
+<script>
+
+function update(username/*optional*/){
+  console.log(username)
+  if( username !== undefined && username !== null ) {
+    window.localStorage.nramaUser = username;
+  }
+  if ( window.localStorage.nramaUser ) {
+    var user = window.localStorage.nramaUser;
+    document.getElementById('see_my_notes').style.display = '';
+    document.getElementById('see_my_notes').innerHTML = '<a href="http://note-o-rama.com/users/'+user+'" target="_blank">http://note-o-rama.com/users/'+user+'</a>';
+    document.getElementById('nrama_user').value = window.localStorage.nramaUser;
+  } else {
+    document.getElementById('see_my_notes').style.display = 'none';
+  }
+
+}
+
+function on_blur(input) {
+  if (window.localStorage == null) {
+    alert('Local storage is required Note-o-rama');
+    return;
+  }
+
+  var username = input.value;
+  update(username);
+}
+
+function main() {
+  if (window.localStorage == null) {
+    alert("LocalStorage must be enabled for the Note-o-rama extension.");
+    document.getElementById('nrama_user').disabled = true;
+    return;
+  }
+  update();
+}
+</script>
+</head>
+<body onload="main()">
+  
+  <div id="header">
+    <h1>Note-o-rama</h1>
+    <p>Browser extension for Chrome.</p>
+  </div>
+  
+  <h3>Please enter your Note-o-rama username</h3>
+  <p>
+    If you don't already have one,
+    <a href="http://note-o-rama.com" target="_blank">signup at note-o-rama.com</a>.*
+  </p>
+  <p> 
+    <strong>Username:</strong>
+    <br />
+    <input id="nrama_user" name="username" value=""
+           onblur="on_blur(this)" />
+  </p>
+  <p id="see_my_notes">
+    You can view your notes at:
+    <br />
+    <a id="my_notes" href="">http://note-o-rama.com/users/username</a>
+  </p>
+</tr>
+
+
+</table>
+ <p style="margin-top: 2em;">
+    * To try it out without signing up,enter any username starting with '*', e.g. '*Mary'.
+    If you do this, others may edit or delete your notes.
+ </p>
+</body>
+</html>
