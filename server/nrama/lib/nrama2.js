@@ -86,6 +86,7 @@
                      :
                         'http://note-o-rama.com/xdm/provider.html'
                      ),
+            event_delay : 750, //min time between creating two notes or quotes
             // -- user identification
             user_id : '*'+nrama_uuid(true).slice(0,10), //default to random anonymous user
             password : 'new',   //TODO think of clever way to store this

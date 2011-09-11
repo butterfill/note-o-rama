@@ -58,7 +58,7 @@ function update(username/*optional*/){
   if ( window.localStorage.nramaUser ) {
     var user = window.localStorage.nramaUser;
     document.getElementById('see_my_notes').style.display = '';
-    document.getElementById('see_my_notes').innerHTML = '<a href="http://note-o-rama.com/users/'+user+'" target="_blank">http://note-o-rama.com/users/'+user+'</a>';
+    document.getElementById('see_my_notes').innerHTML = 'You can view your notes at: <br /><a href="http://note-o-rama.com/users/'+user+'" target="_blank">http://note-o-rama.com/users/'+user+'</a>';
     document.getElementById('nrama_user').value = window.localStorage.nramaUser;
   } else {
     document.getElementById('see_my_notes').style.display = 'none';
@@ -109,10 +109,11 @@ function main() {
     <br />
     <a id="my_notes" href="">http://note-o-rama.com/users/username</a>
   </p>
-</tr>
-
-
-</table>
+  <p>
+    NB:  Your notes will be  stored online, not in your browser.
+        They are visible to all, like a blog post or tweet.
+  </p>
+  
  <p style="margin-top: 2em;">
     * To try it out without signing up,enter any username starting with '*', e.g. '*Mary'.
     If you do this, others may edit or delete your notes.
