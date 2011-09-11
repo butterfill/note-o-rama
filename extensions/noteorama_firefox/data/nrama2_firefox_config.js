@@ -3,10 +3,10 @@
  * This is run after libraries loaded and before nrama2.js is loaded
  */
 
-_NRAMA_USER = 'ffext';  //TODO REMOVE!!!
-_NRAMA_BKMRKLT = false; //don't load the libraries first
-_NRAMA_NO_RPC =false;   //use RPC within FF (xdm xhr not straightforward, unlike chrome)
-settings = {
+self._NRAMA_USER = 'ffext2';  //TODO REMOVE!!!
+self._NRAMA_BKMRKLT = false; //don't load the libraries first
+self._NRAMA_NO_RPC =true;   //use RPC within FF (xdm xhr not straightforward, unlike chrome)
+self.settings = {
     name : 'nrama',         
     baseURL : 'http://noteorama.com'    
 }

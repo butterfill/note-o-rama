@@ -1459,6 +1459,9 @@
             
             // deal with 403 Forbidden events (session expires, etc)
             nrama.$(document).bind('nrama_403', function(e, user_id){
+                if( !user_id ) {
+                    user_id = nrama.settings.user_id;
+                }
                 nrama.ui.dialogs.login(user_id, 'Please login and re-try.', nrama._debug);
             });
             
@@ -1619,6 +1622,9 @@
                                 :
                                     "http://note-o-rama.com/bkmrklt/lib.min.js"
                               );
+                if( typeof _NRAMA_LIB_URL !== 'undefined' ) {
+                    lib_url = _NRAMA_LIB_URL;
+                }
                 // adapted from jQuery ajaxTransport, thank you also http://stackoverflow.com/questions/756382/bookmarklet-wait-until-javascript-is-loaded
                 var loadScript2 = function(url, callback) {
                     var head = document.head || document.getElementsByTagName( "head" )[0] || document.documentElement;

@@ -6,7 +6,7 @@
 // nrama2.js settings
 _NRAMA_BKMRKLT = false;
 
-var implant_script = function(src, callback) {
+var implant_script = function(src) {
     var head = document.head || document.getElementsByTagName( "head" )[0] || document.documentElement;
     var script = document.createElement( "script" );
     script.src = src;

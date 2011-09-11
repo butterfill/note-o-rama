@@ -27,18 +27,29 @@ var loadScript2 = function(props, callback) {
 };
 
 
-
+/*
 self.port.on('nrama_implant', function(urls){
-    console.log('nrama emittede: '+urls.lib);
+    console.log('nrama user: '+urls.user);
     loadScript2({url:urls.lib}, function(){
         //config
-        //    :  TODO REMOVE hard-coded user name!
-        var setup_script = "self._NRAMA_BKMRKLT = false;self._NRAMA_USER = 'ffext';";  
+        var setup_script = "self._NRAMA_BKMRKLT = false;self._NRAMA_USER = '"+urls.user+"';";  
         loadScript2({innerHTML:setup_script});
         //nrama
         loadScript2({url:urls.nrama2}, function(){
             console.log('nrama: all loaded ...');
         });
+    });
+});
+*/
+
+self.port.on('nrama_implant', function(urls){
+    console.log('nrama user: '+urls.user);
+    //config : load as bkmrklt but get libs from resource:// rather than remote
+    var setup_script = "self._NRAMA_BKMRKLT=true;self._NRAMA_USER = '"+urls.user+"';_NRAMA_LIB_URL='"+urls.lib+"'";  
+    loadScript2({innerHTML:setup_script});
+    //nrama
+    loadScript2({url:urls.nrama2}, function(){
+        console.log('nrama: all loaded ...');
     });
 });
 

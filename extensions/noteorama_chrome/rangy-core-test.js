@@ -7,6 +7,8 @@
  * Version: 1.2beta2
  * Build date: 5 August 2011
  */
+
+
 window['rangy'] = (function() {
 
 
