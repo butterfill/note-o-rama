@@ -65,7 +65,7 @@
             } else {
                 return  uuid().replace(/-/g,'')+'N';
             }
-        }
+        };
         return new_uuid;
     };
 
@@ -80,7 +80,7 @@
             // -- internals
             is_embedded : true,     //set to false when being used on the server
             debug : true,
-            nrama_version : 2.0,
+            nrama_version : 2.02,
             xdm_url: ( use_localhost ?
                         'http://localhost:5984/nrama/_design/nrama/_rewrite/xdm/provider.debug.html'
                      :
@@ -144,7 +144,7 @@
                     padding: '12px'
                 },
                 onShow : function(){
-                    lib._.delay( function() { lib.$('.simplemodal-container').css({height:'auto'}); }, 50 )
+                    lib._.delay( function() { lib.$('.simplemodal-container').css({height:'auto'}); }, 50 );
                 }
             }
         };
@@ -165,7 +165,7 @@
         if( settings.debug && typeof window !== 'undefined' ) {
             //window.$=jQuery;                        //<-- nb breaks noConflict
             _debug = function _debug(){
-                var map_or_array = arguments.length == 1 ? arguments[0] : arguments;
+                var map_or_array = arguments.length === 1 ? arguments[0] : arguments;
                 $.each(map_or_array, function(key,val){
                         if( isFinite(key) ) {
                             key = 'a'+key;      //allows us to handle arrays
@@ -199,7 +199,7 @@
                 } catch(e) {
                     return false;
                 }
-            }
+            };
         }
         $.extend({"log":logger});
         return logger;
@@ -263,19 +263,19 @@
             return function(){
                 var new_args = arguments[0];
                 fn.apply(null, new_args);
-            }
+            };
         };
         var _wrap_unarray = function( method ) {
             return function( ) {
                 var new_arguments = lib._.map(arguments, function(arg){
-                    if( typeof(arg) == 'function' ) {
+                    if( typeof(arg) === 'function' ) {
                         return _callback_wrapper(arg);    //wrap because we're putting parameters into array for xdm
                     }
                     return arg;
                 });
                 method.apply(null, new_arguments);  
-            }
-        }
+            };
+        };
 
         // finally, add the rpc functions (as db.save, session.save etc)
         rpc.db={};
@@ -313,19 +313,19 @@
                     lib.$(document).trigger('nrama_403', user_id);
                 }
                 callback(error, data);
-            }
+            };
         };
         var _wrap_403 = function( fn ) {
             return function() {
                 var args = Array.prototype.slice.call(arguments);
                 args[args.length-1] = _wrap_403_callback( args[args.length-1] );
                 return fn.apply(null, args);
-            }
-        }
+            };
+        };
         db.saveDoc = _wrap_403( kanso_db.saveDoc );
         db.removeDoc = _wrap_403( kanso_db.removeDoc );
         db.getView = _wrap_403( kanso_db.getView );
-        db.doUpdate = _wrap_403( kanso_db.doUpdate )
+        db.doUpdate = _wrap_403( kanso_db.doUpdate );
         
         return db;
     };
@@ -357,8 +357,8 @@
                 var args = Array.prototype.slice.call(arguments);
                 args[args.length-1] = _wrap_callback( args[args.length-1] );
                 return fn.apply(null, args);
-            }
-        }
+            };
+        };
         /**
          * needs separate wrapper because callback not called with userCtx.name
          */
@@ -395,7 +395,7 @@
                     _debug({msg:'nrama_'+name+': error',error:error});
                 }
                 callback(error, data);
-            }
+            };
         };
     
         /**
@@ -406,7 +406,7 @@
         persist.save = function(thing, options/*optional*/, callback/*required*/ ) {
             if( !callback ) {
                 callback = options;
-                options = {}
+                options = {};
             }
             var defaults = {
                 clone_on_conflict : false   //e.g. set to true used when saving notes
@@ -421,7 +421,7 @@
             db.saveDoc(thing, function(error, data){
                 if( error ) {
                     if( settings.clone_on_conflict ) {
-                        if( error.status == 409 || error.error == "conflict")  {
+                        if( error.status === 409 || error.error === "conflict")  {
                             persist.$.log('nrama_persist.save: conflict on save for '+(thing.type || '')+' '+thing._id+' --- started cloning');
                             persist.clone(thing, callback);
                             return;
@@ -528,7 +528,7 @@
                     return lib.rangy.deserializeRange(text, settings.root_node);
                 }
             }
-        }
+        };
         serializers.current = serializers.rangy_1_2;   // the serializer to be used in creating new quotes
         return serializers;
     };
@@ -590,7 +590,7 @@
          * Caution: if called with source, source will be modified in place.
          */
         sources.update = function(thing, callback) {
-            var source = ( thing.type == 'source' ? thing : sources.create(thing) );
+            var source = ( thing.type === 'source' ? thing : sources.create(thing) );
             persist.update(source, callback);
         };
 
@@ -601,8 +601,8 @@
          */
         var _update_memo = [];
         sources.update_once = function(thing, callback) {
-            var source_id = ( thing.type == 'source' ? thing._id : thing.source_id );
-            var already_done = ( sources._.indexOf(_update_memo, source_id) != -1 );
+            var source_id = ( thing.type === 'source' ? thing._id : thing.source_id );
+            var already_done = ( sources._.indexOf(_update_memo, source_id) !== -1 );
             if( already_done  ) {
                 callback(null, 'already done');
                 return;
@@ -628,10 +628,10 @@
          * quickly attempt to guess whether something is bibtex
          */
         // like this: @text { = , }
-        var _bib_rex = /(^|[^0-9A-Z&\/\?]+)(@)([0-9A-Z_]*[A-Z_]+[a-z0-9_]*)([\s\S]*?{)([\s\S]*?=)([\s\S]*?,)([\s\S]*?})/gi
+        var _bib_rex = /(^|[^0-9A-Z&\/\?]+)(@)([0-9A-Z_]*[A-Z_]+[a-z0-9_]*)([\s\S]*?{)([\s\S]*?=)([\s\S]*?,)([\s\S]*?})/gi;
         sources.detect_bibtex = function( text ) {
             return !!( text.match(_bib_rex) );
-        }
+        };
         /**
          * given a string, attempts to parse it as bibtex and update the source
          * with the results.
@@ -647,11 +647,11 @@
                 parser.bibtex();
                 results = parser.getEntries();
             } catch(e) {
-                _debug("caught error parsing bibtex",e)
+                _debug("caught error parsing bibtex",e);
                 callback('error parsing bibtex '+e);
                 return;
             }
-            if( sources._.size(results) != 1 ) {
+            if( sources._.size(results) !== 1 ) {
                 callback('nrama_sources.parse_bibtex: input contained '+sources._.size(results)+' entries ('+bib_str+')');
                 return;
             }
@@ -729,13 +729,13 @@
             //update the source before saving any quotes
             sources.update_once(quote, function(error, data) {
                 if( error ) {
-                    quotes.$.log('error in nrama_quotes.save is due to call to sources.update_once.')
+                    quotes.$.log('error in nrama_quotes.save is due to call to sources.update_once.');
                     callback(error, data);
                     return;
                 }
                 persist.save(quote, options, callback);
             });
-        },
+        };
         
         /**
          * attempt to highlight quote into the HTML document.  May fail if range
@@ -749,11 +749,11 @@
          * @returns true if successful (or quote already displayed), false otherwise
          */
         quotes.display = function(quote) {
-            if( quotes.$('.'+quote._id).length != 0 ) {
+            if( quotes.$('.'+quote._id).length !== 0 ) {
                 return true;  //quote already displayed
             }
             var range = quotes.get_range(quote);
-            if( range == null ) {
+            if( !range ) {
                 return false;
             }
             var _rangy_highlighter = quotes.rangy.createCssClassApplier("_nrama-quote "+quote._id,false);
@@ -825,9 +825,9 @@
                 if( !error && data ) {
                     quotes.$.log('nrama_quotes.load got ' + ( data.rows ? data.rows.length : 0 ) + ' quotes from server for user '+user_id);
                     //need to sort quotes by the time they were added to page for best chance of displaying them
-                    var _sorter = function(a,b){ return a.value.created - b.value.created };
+                    var _sorter = function(a,b){ return a.value.created - b.value.created; };
                     data.rows.sort(_sorter);
-                    var _failing_quotes = []
+                    var _failing_quotes = [];
                     quotes.$.each(data.rows, function(index, row){
                         var quote = row.value;
                         var success = quotes.display(quote);  //this won't re-display quotes already present
@@ -849,7 +849,7 @@
          */
         quotes.get_range = function(quote) {
             var method = quote.xptr_method || '_method_unspecified'; //method for recovering the range from the quote
-            if( ! (method in serializers) ) {
+            if( !(serializers.hasOwnProperty(method)) ) {
                 quotes.$.log('unknown xptr_method ('+method+') for quote '+quote._id);
                 return null;
             }
@@ -883,7 +883,7 @@
             //todo
             var node = range.startContainer;
             var page_order = [range.startOffset];   //create in reverse order, will reverse it
-            while ( node && node != document.body ) {
+            while ( node && node !== document.body ) {
                 page_order.push(quotes.rangy.dom.getNodeIndex(node, true));
                 node = node.parentNode;
             }
@@ -957,7 +957,7 @@
             //update the source before saving any quotes
             sources.update_once(note, function(error, data) {
                 if( error ) {
-                    $.log('error in nrama_notes.save, due to call to nrama_sources.update_once.')
+                    $.log('error in nrama_notes.save, due to call to nrama_sources.update_once.');
                     callback(error, data);
                 } else {
                     persist.save(note, options, callback);
@@ -968,7 +968,7 @@
         var _zindex_counter = 10000; //used for bringing notes to the front and to ensure new notes are on top
         notes.bring_to_front = function($note) {
             $note.css('z-index', _zindex_counter++);  //move note to frong
-        }
+        };
 
         /**
          * dispaly a note on the page -- i.e. create and style the HTML and add it
@@ -986,7 +986,7 @@
             var note_defaults = {};
             var viewport_width = $(window).width();
             //shift quotes horizontally by 1/30 of viewport_width
-            var random_shift = function(){return Math.floor(Math.random()*(viewport_width/30))};
+            var random_shift = function(){ return Math.floor(Math.random()*(viewport_width/30)); };
             var note_right_gap = Math.min(15, viewport_width/65);
             note_defaults.left = viewport_width - note_right_gap - (note.width || settings.note_width) - random_shift();
             //to get default for top we need position of associated quote --- only compute this if we really need it
@@ -1005,13 +1005,13 @@
             note = $.extend(true, {}, note_defaults, note );
             
             // -- check the note container div exists, append to document.body if not
-            if( $('#_nrama_notes').length == 0 ) {
+            if( $('#_nrama_notes').length === 0 ) {
                 $('<div id="_nrama_notes"></div>').appendTo('body').
                     css({position:"absolute", left:"0px", top:"0px",width:"0%", height:"0%"});
             }
 
             // --- start properly here
-            if( $('#'+note._id).length != 0 ) {  
+            if( $('#'+note._id).length !== 0 ) {  
                 notes.undisplay(note); //If note already displayed, undisplay it first.
             }
             var pos_attrs = {
@@ -1079,7 +1079,7 @@
             
             // -- delete note if note content is empty
             var new_content = $textarea.val();
-            if( $.trim(new_content) == '' ) {
+            if( $.trim(new_content) === '' ) {
                 $.log("nrama_notes.update -- deleting note "+$note.attr('id'));
                 notes.remove($note); 
                 return;
@@ -1089,7 +1089,7 @@
             
             // -- if content unchanged, do nothing (so moving a note won't trigger a change)
             var old_content = note.content;
-            if( old_content == new_content ) {
+            if( old_content === new_content ) {
                 _finally($note, true);
                 return;
             }
@@ -1122,7 +1122,7 @@
                     if( sources.detect_bibtex(new_note.content) ) {
                         sources.update_from_bibtex(new_note.content, new_note, function(error, data){
                             if( !error ) {
-                                $('#'+note._id).css({border:'1px solid #01DF01'})
+                                $('#'+note._id).css({border:'1px solid #01DF01'});
                             }
                             _finally( $note, true );
                         });
@@ -1187,7 +1187,7 @@
                 user_id : user_id
             }, function(error, data){
                 if( error ) {
-                    _debug({msg:'nrama_notes.load error:', error:error})
+                    _debug({msg:'nrama_notes.load error:', error:error});
                     callback(error, data);
                     return;
                 }
@@ -1209,7 +1209,7 @@
             var _ids = [];
             $('._nrama-note').each(function(){
                 var rel_quote_id = $(this).data('nrama_note').quote_id;
-                if( rel_quote_id == quote._id ) {
+                if( rel_quote_id === quote._id ) {
                     _ids.push($(this).attr('id'));  //add _id of the note to the list
                 }
             });
@@ -1231,7 +1231,7 @@
         var _update_user_id = function(data) {
             if( data && data.userCtx && data.userCtx.name ) {
                 var logged_in_as = data.userCtx.name;
-                if( logged_in_as != settings.user_id ) {
+                if( logged_in_as !== settings.user_id ) {
                     //username has changed
                     ui.dialogs.warn_user_discrepancy(logged_in_as);
                     settings.user_id = logged_in_as;
@@ -1273,7 +1273,7 @@
                     callback(null, 'already logged in');
                 } else {
                     //not logged in
-                    if( settings.user_id && settings.user_id[0] == '*' ) {
+                    if( settings.user_id && settings.user_id[0] === '*' ) {
                         //anonymous
                         callback(null, 'anonymous user');
                     } else {
@@ -1355,7 +1355,7 @@
         
         ui.dialogs.warn_user_discrepancy = function(name, callback) {
             if( !callback ) { callback = function(){}; }
-            var who = settings.user_id[0]=='*' ? 'anonymous users' : settings.user_id;
+            var who = ( settings.user_id[0] === '*' ? 'anonymous users' : settings.user_id );
             lib.$.log('user logged in as '+name+' but this bookmarklet was configured for '+who );
             callback(null, 'not implemented yet');
         };
@@ -1429,7 +1429,7 @@
             nrama.settings.page_id = window.location.protocol+"//"+window.location.host+window.location.pathname;  //the url with no ?query or #anchor details
             //remove trailing slash
             var last = nrama.settings.page_id.length-1;
-            if( nrama.settings.page_id[last]=='/' ) {
+            if( nrama.settings.page_id[last] === '/' ) {
                 nrama.settings.page_id = nrama.settings.page_id.slice(0,last);
             }
             
@@ -1501,7 +1501,7 @@
                     }
                 }
                 var quote = nrama.quotes.create(range);
-                if( quote.content != '' ) {
+                if( quote.content !== '' ) {
                     nrama.quotes.save(quote, function(error, data){
                         //(todo -- some indicate that it has failed?
                         if( !error ) {
@@ -1534,16 +1534,16 @@
                 if( e.altKey || e.metaKey ) {
                     var quote = nrama.$(this).data('nrama_quote');
                     var note_ids = nrama.notes.find(quote);
-                    if( note_ids.length != 0 ) {
+                    if( note_ids.length !== 0 ) {
                         //don't delete quotes with notes attached ...
                         var $quote_nodes = nrama.$('.'+quote._id);
                         $quote_nodes.css({'border-top':'1px dashed red',
-                                         'border-bottom':'1px dashed red'})
+                                         'border-bottom':'1px dashed red'});
                         //... instead make the relevant notes bounce
                         var idstr = '#' + note_ids.join(', #');
                         nrama.$(idstr).effect('bounce', function(){
                             $quote_nodes.css({'border-top':'none',
-                                             'border-bottom':'none'},500)
+                                             'border-bottom':'none'},500);
                         });
                         return;
                     }
@@ -1563,7 +1563,7 @@
             //tabbing out of a note doesn't move to next note (because weird).
             //thank you http://stackoverflow.com/questions/1314450/jquery-how-to-capture-the-tab-keypress-within-a-textbox
             nrama.$('._nrama-note').live('keydown',function(e){
-                if( e.which == 9 ) {
+                if( e.which === 9 ) {
                     nrama.$('textarea', this).blur();
                     e.preventDefault();
                 }
@@ -1572,7 +1572,7 @@
             // === init done
             callback(nrama.$);
         });
-    }
+    };
     
     /**
      * IT ALL STARTS HERE
@@ -1600,7 +1600,7 @@
                 }; 
                 try {
                     get_head().innerHTML = '';
-                } catch(e) {
+                } catch(ex) {
                     //alt. method -- can't set innerHTML with safari (others?)
                     var head = get_head();
                     var children = [];
@@ -1609,11 +1609,11 @@
                         if( child.nodeName !== 'SCRIPT' ) {
                             children.push( child );
                         }
-                        head.removeChild( child )
+                        head.removeChild( child );
                     }
                     restore_document_head = function($) {
                         $('head').append(children);
-                    }
+                    };
                 }
      
                 // load libraries & only start work after they loaded
@@ -1648,7 +1648,7 @@
                     };
                     // Use insertBefore instead of appendChild  to circumvent an IE6 bug.
                     head.insertBefore( script, head.firstChild );
-                }
+                };
                 loadScript2(lib_url, function() {
                     jQuery.noConflict();
                     _nrama_init(exports, use_localhost, jQuery, function(jQuery){
