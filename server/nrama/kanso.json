@@ -1,8 +1,20 @@
 {
     "name": "nrama",
+    "version": "0.1.0",
+    "description" : "note-o-rama couchdb app",
     "load": "lib/app",
     "modules": "lib",
-    "templates": "templates",
+    "dust": { "templates": "templates" },
     "attachments": ["static","xdm","bkmrklt"],
-    "base_template": "base.html"
+    "duality": { "base_template": "base.html" },
+    "dependencies": {
+        "modules": null,
+        "settings": null,
+        "attachments": null,
+        "properties": null,
+        "couchtypes": null,
+        "dust": null,
+        "duality": null,
+        "duality-dust": null
+    }
 }

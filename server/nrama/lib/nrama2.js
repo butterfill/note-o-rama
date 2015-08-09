@@ -460,6 +460,7 @@
          * thing must have .type and ._id attributes
          */
         persist.update = function(thing, callback) {
+            _debug({msg:'thing.type = '+thing.type+' for thing._id='+thing._id});
             db.doUpdate( thing, encodeURIComponent( thing.type ), _debug_wrap('persist.update', callback) );
         };
 
@@ -704,7 +705,7 @@
                 url : document.location.href,
                 page_id : settings.page_id,  
                 page_title : document.title,
-                //the xpointer to the quote (well, it isn't actually an xpointer but  any serialized representation of the raneg)
+                //the xpointer to the quote (well, it isn't actually an xpointer but  any serialized representation of the range)
                 xptr : serializers.current.serialize(range),
                 //the name of the method used to seralise
                 xptr_method : serializers.current.id,
@@ -938,7 +939,7 @@
          * extract tags from note
          * losely based on lines 106-7 of https://raw.github.com/bcherry/twitter-text-js/master/twitter-text.js
          */
-        var _hashtag_regex = /(^|[^0-9A-Z&\/\?]+)(#|＃)([0-9A-Z_]*[A-Z_]+[a-z0-9_]*)/gi;
+        var _hashtag_regex = /(^|[^0-9A-Z&\/\?]+)(#|＃)([0-9A-Z_]*[A-Z_-]+[a-z0-9_]*)/gi;
         notes.get_tags = function(note) {
             var tags = [];
             note.content.replace(_hashtag_regex, function(match, before, hash, hashText) {
@@ -955,11 +956,13 @@
             //extract and store the tags
             note.tags = notes.get_tags(note);
             //update the source before saving any quotes
+            _debug({msg:'updating source'});
             sources.update_once(note, function(error, data) {
                 if( error ) {
                     $.log('error in nrama_notes.save, due to call to nrama_sources.update_once.');
                     callback(error, data);
                 } else {
+                    _debug({msg:'saving note'});
                     persist.save(note, options, callback);
                 }
             });
@@ -967,7 +970,7 @@
             
         var _zindex_counter = 10000; //used for bringing notes to the front and to ensure new notes are on top
         notes.bring_to_front = function($note) {
-            $note.css('z-index', _zindex_counter++);  //move note to frong
+            $note.css('z-index', _zindex_counter++);  //move note to front
         };
 
         /**

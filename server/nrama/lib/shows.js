@@ -2,7 +2,7 @@
  * Show functions to be exported from the design doc.
  */
 
-var templates = require('kanso/templates'),
+var templates = require('duality/templates'),
     uuid_sync = require('./uuid');
     nrama_constructors = require('./nrama2');
 

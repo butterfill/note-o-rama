@@ -1,8 +1,8 @@
 /**
  * Kanso document types to export
  */
-var Type = require('kanso/types').Type,
-    fields = require('kanso/fields'),
-    widgets = require('kanso/widgets');
+var Type = require('couchtypes/types').Type,
+    fields = require('couchtypes/fields'),
+    widgets = require('couchtypes/widgets');
 
 

@@ -5,12 +5,11 @@
  *      https://github.com/caolan/kanso/blob/master/admin/lib/app.js)
  */
 
-var events = require('kanso/events'),
-    session = require('kanso/session'),
-    templates = require('kanso/templates'),
-    events = require('kanso/events'),
+var events = require('duality/events'),
+    session = require('session'),
+    templates = require('duality/templates'),
     _ = require('./underscore')._,
-    db = require('kanso/db');
+    db = require('db');
 
 
 
@@ -28,9 +27,11 @@ events.on('init', function () {
  * session information becomes available. It is also fired whenever a change
  * to the user's session is detected, for example after logging in or out.
  */
-events.on('sessionChange', function (userCtx, req) {
+session.on('change', function (userCtx, req) {
+  if( req ) {
     $('#session').replaceWith(templates.render('session.html', req, userCtx));
     $('#registration').replaceWith(templates.render('registration.html', req, userCtx));
+  }
 });
 
 

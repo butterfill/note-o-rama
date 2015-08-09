@@ -1,9 +1,9 @@
 /**
  * List functions to be exported from the design doc.
  */
-var templates = require('kanso/templates'),
-    events = require('kanso/events'),
-    db = require('kanso/db'),
+var templates = require('duality/templates'),
+    events = require('duality/events'),
+    db = require('db'),
     utils = require('./utils'),
     _ = require('./underscore')._,
     nrama_init = require('./nrama2_init').init;
@@ -194,7 +194,7 @@ exports.tags = function(head, req) {
     var row ;
     var tag_url_base = false;
     if (req && req.userCtx && req.userCtx.baseURL && req.query) {
-        url_base = req.userCtx.baseURL + (req.query.user ? '/users/'+encodeURIComponent(req.query.user) + '/' : '');
+        tag_url_base = req.userCtx.baseURL + (req.query.user ? '/users/'+encodeURIComponent(req.query.user) + '/' : '');
     }
     while( row = getRow() ) {
         if( !row.key || !row.key[tag_index_in_key] ) {
@@ -219,7 +219,7 @@ exports.tags = function(head, req) {
             $('#tag_cloud').jQCloud(tags, {
                 callback : function() {
                     $('#tag_cloud a').each(function(){
-                        $(this).attr('href', req.userCtx.baseURL + (req.query.user ? '/users/'+encodeURIComponent(req.query.user) : '') + '/tags/'+ $(this).text());
+                        $(this).attr('href', 'tags/'+ $(this).text());
                     });
                 }
             });

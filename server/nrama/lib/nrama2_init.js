@@ -3,9 +3,9 @@
  * NB can only be called client side!
  * 
  */
-var db = require('kanso/db'),
-    utils = require('kanso/utils'),
-    session = require('kanso/session'),
+var db = require('db'),
+    utils = require('duality/utils'),
+    session = require('session'),
     _ = require('./underscore')._,
     BibtexParser = require('./bibtex').BibtexParser,      //nb this is more uptodate than that incl. with kanso 0.0.7
     b64_hmac_md5 = require('./md5').b64_hmac_md5,
@@ -30,21 +30,21 @@ var _init = function(){
         b64_hmac_md5 : b64_hmac_md5
     };
     
-    // temporary patch (kanso's db lacks updates)
-    if( !db.doUpdate ) {
-        db.doUpdate = function( doc, update_name, callback ) {
-            var url = utils.getBaseURL() + '/update/' + update_name +'/' + db.encode( doc._id );
-            var req = {
-                type: 'PUT',
-                url: url,
-                data: JSON.stringify(doc),
-                processData: false,
-                contentType: 'application/json',
-                expect_json:false               //as of couchdb 1.1.0, updates seem to defy attempts to alter headers & return text/html header.
-            };
-            db.request(req, callback);
-        };
-    }
+    // // temporary patch (kanso's db lacks updates)
+    // if( !db.doUpdate ) {
+    //     db.doUpdate = function( doc, update_name, callback ) {
+    //         var url = utils.getBaseURL() + '/update/' + update_name +'/' + db.encode( doc._id );
+    //         var req = {
+    //             type: 'PUT',
+    //             url: url,
+    //             data: JSON.stringify(doc),
+    //             processData: false,
+    //             contentType: 'application/json',
+    //             expect_json:false               //as of couchdb 1.1.0, updates seem to defy attempts to alter headers & return text/html header.
+    //         };
+    //         db.request(req, callback);
+    //     };
+    // }
     var nrama = {};
     nrama.uuid = nrama_constructors._make_uuid(uuid_sync);
     nrama.settings = _.extend( nrama_constructors._make_settings( nrama.uuid, false/*use_localhost*/, lib ), {
@@ -59,7 +59,39 @@ var _init = function(){
     });
     nrama._debug = nrama_constructors._make_debug(nrama.settings, window, lib);
     nrama.log = nrama_constructors._make_logging(nrama.settings, $);
-    nrama.db = db;
+    // wrap kanso db thing for compatibility with the old version
+    
+    var settings_root = require('settings/root');
+    var kanso_db = {
+      saveDoc : function saveDoc(doc, callback) {
+        var appdb = db.use(require('duality/core').getDBURL());
+        return appdb.saveDoc(doc, callback);
+      },
+      getView : function getView(view_name, query_object, callback){
+        var appdb = db.use(require('duality/core').getDBURL());
+        var design_doc = settings_root.name;
+        return appdb.getView(design_doc, view_name, query_object, callback);
+      },
+      doUpdate : function doUpdate( doc, update_name, callback ) {
+          var appdb = db.use(require('duality/core').getDBURL());
+          var url = utils.getBaseURL() + '/update/' + update_name +'/' + db.encode( doc._id );
+          nrama._debug({msg:'yes, doUpdate called, update_name = ' +update_name+", url = "+url })
+          var req = {
+              type: 'PUT',
+              url: url,
+              data: JSON.stringify(doc),
+              processData: false,
+              contentType: 'application/json',
+              expect_json:false               //as of couchdb 1.1.0, updates seem to defy attempts to alter headers & return text/html header.
+          };
+          appdb.request(req, callback);
+      },
+      removeDoc : function removeDoc(doc, callback) {
+        var appdb = db.use(require('duality/core').getDBURL());
+        return appdb.removeDoc(doc, callback);
+      }
+    };
+    nrama.db = kanso_db;
     nrama.session = session;
     nrama.persist = nrama_constructors._make_persist(nrama.settings, nrama.db, nrama.session,
                                                      nrama.uuid, nrama._debug);
