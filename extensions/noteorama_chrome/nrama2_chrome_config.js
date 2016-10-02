@@ -7,5 +7,5 @@ _NRAMA_BKMRKLT = false; //don't load the libraries first
 _NRAMA_NO_RPC = true;   //don't use RPC, we will provide db and session objects before init
 settings = {
     name : 'nrama',         
-    baseURL : 'http://noteorama.com'    
+    baseURL : 'https://notes.butterfill.com'    
 }

@@ -1,8 +1,10 @@
 {
+  "manifest_version" : 2,
   "name": "Note-o-rama",
   "description": "Add notes and highlights to any web page.",
   "version": "2.0.1",
-  "background_page": "background.html",
+  // "background_page": "background.html",
+  "background": "background.html",
   "icons": { "128": "nrama_logo_big.png" },
   "options_page": "options.html",
   "permissions": [

@@ -1,6 +1,8 @@
 Note-o-rama
 ===========
 
+***/server is still current; for /client and the browser extensions, see nrama3***
+
 Add notes and highlights to documents without breaking the flow of your 
 reading.
  
